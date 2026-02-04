@@ -1,0 +1,396 @@
+# 前端API接口使用规范
+
+## 规则说明
+
+**重要规则**：在实现任何前端API接口调用时，**必须**直接查看后端Lemon项目的Swagger文档，不要猜测或假设后端接口格式。
+
+## 为什么需要这个规则
+
+- ✅ **减少沟通成本**：不需要询问后端开发者接口格式
+- ✅ **确保一致性**：前端接口定义与后端完全一致
+- ✅ **避免错误**：不猜测，直接参考权威文档
+- ✅ **提高效率**：Swagger文档是唯一真实来源
+
+## Swagger文档位置
+
+### 1. 文档位置
+
+后端Lemon项目的Swagger文档位于：
+```
+/Users/jimmy/go/src/lemon/docs/swagger/
+├── swagger.yaml      # YAML格式（推荐查看）
+├── swagger.json      # JSON格式
+└── docs.go           # Go代码生成文件
+```
+
+### 2. 在线访问
+
+如果后端服务正在运行，可以通过以下方式访问：
+- **Swagger UI**: `http://localhost:7080/swagger/index.html`
+- **API文档**: `http://localhost:7080/swagger/doc.json`
+
+### 3. 本地文件访问
+
+直接查看本地文件：
+```bash
+# 查看YAML格式（推荐）
+cat /Users/jimmy/go/src/lemon/docs/swagger/swagger.yaml
+
+# 或使用编辑器打开
+code /Users/jimmy/go/src/lemon/docs/swagger/swagger.yaml
+```
+
+## 使用流程
+
+### 步骤1: 确定需要调用的接口
+
+明确你要实现的功能需要调用哪个后端接口。
+
+**示例**：
+- 用户登录 → `POST /api/v1/auth/login`
+- 获取用户信息 → `GET /api/v1/auth/me`
+- 创建工作流 → `POST /api/v1/workflow`
+
+### 步骤2: 查看Swagger文档
+
+**必须操作**：打开Swagger文档，找到对应的接口定义。
+
+**查找方法**：
+1. 在`swagger.yaml`中搜索接口路径（如`/api/v1/auth/login`）
+2. 查看`paths`部分，找到对应的接口定义
+3. 查看`parameters`、`requestBody`、`responses`等字段
+
+### 步骤3: 查看Model定义
+
+**必须操作**：查看接口使用的Request和Response Model定义。
+
+**查找方法**：
+1. 在Swagger文档的`components.schemas`部分查找Model定义
+2. 查看Model的字段、类型、是否必填等
+3. 注意字段命名（snake_case vs camelCase）
+
+**示例**：
+```yaml
+# swagger.yaml
+components:
+  schemas:
+    LoginRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+        password:
+          type: string
+    
+    LoginResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+        message:
+          type: string
+        data:
+          $ref: '#/components/schemas/LoginResponseData'
+    
+    LoginResponseData:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        expires_in:
+          type: integer
+        token_type:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserInfo'
+```
+
+### 步骤4: 定义TypeScript类型
+
+**必须操作**：根据Swagger文档中的Model定义，创建对应的TypeScript类型。
+
+**规范**：
+- ✅ 类型名称与后端Model名称保持一致（如`LoginRequest`、`LoginResponseData`）
+- ✅ 字段名称与后端完全一致（注意snake_case）
+- ✅ 字段类型与后端定义一致
+- ✅ 必填字段使用`required`，可选字段使用`?`
+
+**示例**：
+```typescript
+// src/api/auth.ts
+
+// ✅ 正确：直接参考Swagger文档中的 model.LoginRequest
+export interface LoginRequest {
+  username: string  // 必填，与后端一致
+  password: string  // 必填，与后端一致
+}
+
+// ✅ 正确：直接参考Swagger文档中的 model.LoginResponseData
+export interface LoginResponseData {
+  access_token: string      // snake_case，与后端一致
+  refresh_token: string     // snake_case，与后端一致
+  expires_in: number        // snake_case，与后端一致
+  token_type: string        // snake_case，与后端一致
+  user: UserInfo            // 引用其他Model
+}
+
+// ❌ 错误：猜测字段名称
+export interface LoginRequest {
+  userName: string  // ❌ 应该是username，不是userName
+  pwd: string       // ❌ 应该是password，不是pwd
+}
+
+// ❌ 错误：猜测字段格式
+export interface LoginResponseData {
+  accessToken: string  // ❌ 应该是access_token（snake_case）
+  refreshToken: string // ❌ 应该是refresh_token（snake_case）
+}
+```
+
+### 步骤5: 实现API调用
+
+**必须操作**：使用定义的TypeScript类型实现API调用。
+
+**规范**：
+- ✅ 使用`request`客户端（已配置统一响应处理）
+- ✅ 请求方法（GET/POST）与Swagger文档一致
+- ✅ 请求路径与Swagger文档一致
+- ✅ 请求参数格式与Swagger文档一致
+- ✅ 添加注释，注明对应的后端Model
+
+**示例**：
+```typescript
+// src/api/auth.ts
+
+import request from './client'
+
+export const authApi = {
+  // 用户登录
+  // POST /api/v1/auth/login
+  // 请求体: LoginRequest (对应后端 model.LoginRequest)
+  // 响应: { code: 0, message: string, data: LoginResponseData } (对应后端 model.LoginResponse)
+  login(data: LoginRequest) {
+    return request.post<LoginResponseData>('/api/v1/auth/login', data)
+  },
+
+  // 获取当前用户信息
+  // GET /api/v1/auth/me
+  // 响应: { code: 0, message: string, data: UserInfo } (对应后端 model.GetMeResponse)
+  getMe() {
+    return request.get<UserInfo>('/api/v1/auth/me')
+  }
+}
+```
+
+### 步骤6: 更新Mock数据（如需要）
+
+**如果使用Mock数据**：确保Mock数据的格式与Swagger文档中的Response定义完全一致。
+
+**示例**：
+```typescript
+// src/mock/auth.ts
+
+export default [
+  {
+    url: '/api/v1/auth/login',
+    method: 'post',
+    response: ({ body }: { body: any }) => {
+      // ✅ 响应格式与后端 model.LoginResponse 一致
+      return {
+        code: 0,
+        message: '登录成功',
+        data: {
+          access_token: 'mock_token',
+          refresh_token: 'mock_refresh_token',
+          expires_in: 3600,
+          token_type: 'Bearer',
+          user: {
+            id: '1',
+            username: 'admin',
+            // ... 其他字段与后端 model.UserInfo 一致
+          }
+        }
+      }
+    }
+  }
+] as MockMethod[]
+```
+
+## 检查清单
+
+在实现API接口调用前，请确认：
+
+### 1. 接口定义检查
+- [ ] 已查看Swagger文档中的接口定义
+- [ ] 确认了HTTP方法（GET/POST/PUT/DELETE）
+- [ ] 确认了请求路径
+- [ ] 确认了请求参数格式（Query/Body）
+
+### 2. 类型定义检查
+- [ ] 已查看Swagger文档中的Model定义
+- [ ] TypeScript类型名称与后端Model名称一致
+- [ ] 字段名称与后端完全一致（注意snake_case）
+- [ ] 字段类型与后端定义一致
+- [ ] 必填/可选字段标记正确
+
+### 3. API调用检查
+- [ ] 使用了正确的HTTP方法
+- [ ] 使用了正确的请求路径
+- [ ] 请求参数格式正确
+- [ ] 添加了注释，注明对应的后端Model
+- [ ] 使用了统一的`request`客户端
+
+### 4. Mock数据检查（如使用）
+- [ ] Mock响应格式与Swagger文档一致
+- [ ] 字段名称与后端一致（snake_case）
+- [ ] 错误响应格式也符合后端定义
+
+## 常见错误示例
+
+### ❌ 错误1: 猜测字段名称
+```typescript
+// ❌ 错误：猜测字段名称
+export interface LoginRequest {
+  userName: string  // 应该是username
+  pwd: string        // 应该是password
+}
+```
+
+### ✅ 正确: 参考Swagger文档
+```typescript
+// ✅ 正确：参考Swagger文档中的 model.LoginRequest
+export interface LoginRequest {
+  username: string  // 与后端一致
+  password: string  // 与后端一致
+}
+```
+
+### ❌ 错误2: 猜测字段格式（camelCase vs snake_case）
+```typescript
+// ❌ 错误：使用camelCase
+export interface LoginResponseData {
+  accessToken: string   // 应该是access_token
+  refreshToken: string  // 应该是refresh_token
+  expiresIn: number     // 应该是expires_in
+}
+```
+
+### ✅ 正确: 使用snake_case（与后端一致）
+```typescript
+// ✅ 正确：使用snake_case，与后端 model.LoginResponseData 一致
+export interface LoginResponseData {
+  access_token: string   // 与后端一致
+  refresh_token: string // 与后端一致
+  expires_in: number     // 与后端一致
+}
+```
+
+### ❌ 错误3: 猜测响应格式
+```typescript
+// ❌ 错误：猜测响应格式
+authApi.login(data).then(res => {
+  console.log(res.token)  // 猜测有token字段
+})
+```
+
+### ✅ 正确: 参考Swagger文档
+```typescript
+// ✅ 正确：参考Swagger文档，响应格式为 { code, message, data }
+// data字段包含 access_token, refresh_token 等
+authApi.login(data).then(res => {
+  console.log(res.access_token)  // 使用正确的字段名
+})
+```
+
+### ❌ 错误4: 不查看文档，直接实现
+```typescript
+// ❌ 错误：不查看Swagger文档，直接猜测实现
+export const workflowApi = {
+  create(data: any) {  // ❌ 使用any，没有定义类型
+    return request.post('/api/v1/workflow', data)
+  }
+}
+```
+
+### ✅ 正确: 先查看文档，再实现
+```typescript
+// ✅ 正确：先查看Swagger文档中的 model.CreateWorkflowRequest 和 model.CreateWorkflowResponse
+// 然后定义对应的TypeScript类型
+
+// 参考: swagger.yaml - model.CreateWorkflowRequest
+export interface CreateWorkflowRequest {
+  name: string
+  input_type: string
+  input_content: string
+  options?: Record<string, any>
+}
+
+// 参考: swagger.yaml - model.CreateWorkflowResponse
+export interface CreateWorkflowResponseData {
+  workflow_id: string
+  status: string
+  created_at: string
+}
+
+export const workflowApi = {
+  // POST /api/v1/workflow
+  // 请求体: CreateWorkflowRequest (对应后端 model.CreateWorkflowRequest)
+  // 响应: { code: 0, message: string, data: CreateWorkflowResponseData } (对应后端 model.CreateWorkflowResponse)
+  create(data: CreateWorkflowRequest) {
+    return request.post<CreateWorkflowResponseData>('/api/v1/workflow', data)
+  }
+}
+```
+
+## 快速查找Swagger文档的方法
+
+### 方法1: 使用命令行搜索
+```bash
+# 搜索接口路径
+grep -r "/api/v1/auth/login" /Users/jimmy/go/src/lemon/docs/swagger/
+
+# 搜索Model定义
+grep -r "LoginRequest" /Users/jimmy/go/src/lemon/docs/swagger/
+```
+
+### 方法2: 使用编辑器搜索
+1. 在VSCode/Cursor中打开 `lemon/docs/swagger/swagger.yaml`
+2. 使用 `Cmd+F` (Mac) 或 `Ctrl+F` (Windows/Linux) 搜索接口路径或Model名称
+3. 查看完整的接口定义和Model定义
+
+### 方法3: 访问Swagger UI（如果后端运行中）
+1. 启动后端服务：`cd lemon && make dev`
+2. 访问：`http://localhost:7080/swagger/index.html`
+3. 在Swagger UI中查找接口定义
+
+## 执行时机
+
+**每次实现以下内容时，必须执行此检查**:
+- ✅ 定义新的API接口类型
+- ✅ 实现新的API调用
+- ✅ 更新现有的API接口
+- ✅ 修改Mock数据
+- ✅ 处理API响应数据
+- ✅ 提交代码前
+
+## 参考文档
+
+- [后端Swagger文档](../../lemon/docs/swagger/swagger.yaml)
+- [前端API参考文档](../docs/api/API_REFERENCE.md)
+- [后端开发规范](../../lemon/docs/guide/DEVELOPMENT_RULES.md)
+
+## 重要提醒
+
+**⚠️ 不要猜测后端接口格式！**
+
+- ❌ 不要根据"常见做法"猜测字段名称
+- ❌ 不要根据其他项目的经验猜测格式
+- ❌ 不要根据后端代码猜测（代码可能已更新）
+- ✅ **唯一真实来源是Swagger文档**
+
+**每次实现API接口时，请先查看Swagger文档！**
