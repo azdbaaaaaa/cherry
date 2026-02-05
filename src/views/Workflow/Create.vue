@@ -71,14 +71,36 @@
               </el-select>
             </el-form-item>
 
+            <!-- 旁白类型 -->
+            <el-form-item label="旁白类型" prop="narration_type">
+              <el-select
+                v-model="form.narration_type"
+                placeholder="请选择旁白类型"
+                size="large"
+                class="full-width"
+              >
+                <el-option
+                  v-for="type in narrationTypes"
+                  :key="type.value"
+                  :label="type.label"
+                  :value="type.value"
+                >
+                  <div class="option-item">
+                    <el-icon><component :is="type.icon" /></el-icon>
+                    <span>{{ type.label }}</span>
+                  </div>
+                </el-option>
+              </el-select>
+            </el-form-item>
+
             <!-- 文本输入 -->
             <el-form-item
               v-if="form.input_type === 'text'"
               label="输入内容"
-              prop="input_content"
+              prop="text_content"
             >
               <el-input
-                v-model="form.input_content"
+                v-model="form.text_content"
                 type="textarea"
                 :rows="12"
                 placeholder="请输入文本内容..."
@@ -90,7 +112,7 @@
 
             <!-- 文件上传 -->
             <el-form-item
-              v-if="form.input_type !== 'text'"
+              v-if="form.input_type === 'file'"
               label="上传文件"
               prop="file"
             >
@@ -119,23 +141,6 @@
               </el-upload>
             </el-form-item>
 
-            <!-- 高级选项 -->
-            <el-collapse v-model="activeCollapse" class="advanced-options">
-              <el-collapse-item name="advanced" title="高级选项">
-                <el-form-item label="AI服务提供商">
-                  <el-select
-                    v-model="form.options.ai_provider"
-                    placeholder="选择AI服务"
-                    size="large"
-                    class="full-width"
-                  >
-                    <el-option label="Gemini" value="gemini" />
-                    <el-option label="OpenAI" value="openai" />
-                    <el-option label="豆包" value="doubao" />
-                  </el-select>
-                </el-form-item>
-              </el-collapse-item>
-            </el-collapse>
 
             <!-- 提交按钮 -->
             <el-form-item class="form-actions">
@@ -175,10 +180,13 @@ import {
   Check,
   Document,
   Picture,
-  Files
+  Files,
+  Microphone,
+  ChatLineRound
 } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { workflowApi } from '@/api/workflow'
+import { workflowApi, type CreateWorkflowRequest } from '@/api/workflow'
+import { resourceApi } from '@/api/resource'
 
 const router = useRouter()
 const formRef = ref<FormInstance>()
@@ -188,29 +196,32 @@ const activeCollapse = ref<string[]>([])
 
 const inputTypes = [
   { value: 'text', label: '文本', icon: Document },
-  { value: 'novel', label: '小说', icon: Files },
-  { value: 'document', label: '文档', icon: Document },
-  { value: 'image', label: '图片', icon: Picture }
+  { value: 'file', label: '文件', icon: Files }
+]
+
+const narrationTypes = [
+  { value: 'narration', label: '旁白（解说）', icon: Microphone },
+  { value: 'dialogue', label: '真人对话', icon: ChatLineRound }
 ]
 
 const form = reactive({
   name: '',
-  input_type: 'text' as 'novel' | 'document' | 'image' | 'text',
-  input_content: '',
-  options: {
-    ai_provider: 'gemini'
-  }
+  input_type: 'text' as 'text' | 'file',
+  text_content: '',
+  resource_id: '',
+  narration_type: 'narration' as 'narration' | 'dialogue'
 })
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入工作流名称', trigger: 'blur' }],
   input_type: [{ required: true, message: '请选择输入类型', trigger: 'change' }],
-  input_content: [
+  narration_type: [{ required: true, message: '请选择旁白类型', trigger: 'change' }],
+  text_content: [
     {
       validator: (rule, value, callback) => {
         if (form.input_type === 'text' && !value) {
           callback(new Error('请输入输入内容'))
-        } else if (form.input_type !== 'text' && !selectedFile.value) {
+        } else if (form.input_type === 'file' && !selectedFile.value) {
           callback(new Error('请上传文件'))
         } else {
           callback()
@@ -222,34 +233,25 @@ const rules: FormRules = {
 }
 
 const getAcceptTypes = () => {
-  const map: Record<string, string> = {
-    novel: '.txt,.doc,.docx,.pdf',
-    document: '.doc,.docx,.pdf',
-    image: '.jpg,.jpeg,.png,.gif,.webp'
-  }
-  return map[form.input_type] || '*'
+  return '.txt,.doc,.docx,.pdf'
 }
 
 const getFileTypesText = () => {
-  const map: Record<string, string> = {
-    novel: 'TXT、DOC、DOCX、PDF',
-    document: 'DOC、DOCX、PDF',
-    image: 'JPG、PNG、GIF、WEBP'
-  }
-  return map[form.input_type] || '所有'
+  return 'TXT、DOC、DOCX、PDF'
 }
 
 const handleFileChange = (file: any) => {
   selectedFile.value = file.raw
   if (formRef.value) {
-    formRef.value.validateField('input_content')
+    formRef.value.validateField('text_content')
   }
 }
 
 const handleFileRemove = () => {
   selectedFile.value = null
+  form.resource_id = ''
   if (formRef.value) {
-    formRef.value.validateField('input_content')
+    formRef.value.validateField('text_content')
   }
 }
 
@@ -261,25 +263,44 @@ const submit = async () => {
 
     submitting.value = true
     try {
-      const data: any = {
+      let resourceId = form.resource_id
+
+      // 如果是 file 模式，需要先上传文件
+      if (form.input_type === 'file') {
+        if (!selectedFile.value) {
+          ElMessage.warning('请先上传文件')
+          submitting.value = false
+          return
+        }
+
+        // 上传文件获取 resource_id
+        const uploadResult = await resourceApi.uploadFile(selectedFile.value)
+        if (!uploadResult?.resource_id) {
+          ElMessage.error('文件上传失败：未获取到资源ID')
+          submitting.value = false
+          return
+        }
+        resourceId = uploadResult.resource_id
+      }
+
+      // 构建请求数据
+      const data: CreateWorkflowRequest = {
         name: form.name,
         input_type: form.input_type,
-        options: form.options
+        narration_type: form.narration_type
       }
 
       if (form.input_type === 'text') {
-        data.input_content = form.input_content
-      } else if (selectedFile.value) {
-        // TODO: 上传文件
-        ElMessage.info('文件上传功能开发中...')
-        return
+        data.text_content = form.text_content
+      } else if (form.input_type === 'file') {
+        data.resource_id = resourceId
       }
 
       const res = await workflowApi.create(data)
       ElMessage.success('工作流创建成功')
       router.push(`/workflow/${res.data.workflow_id}`)
     } catch (error: any) {
-      ElMessage.error(error.response?.data?.message || '创建工作流失败')
+      ElMessage.error(error.response?.data?.message || error.message || '创建工作流失败')
       console.error(error)
     } finally {
       submitting.value = false

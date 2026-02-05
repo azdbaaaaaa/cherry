@@ -41,6 +41,32 @@ const routes: RouteRecordRaw[] = [
         component: () => import('@/views/Workflow/Detail.vue')
       }
     ]
+  },
+  {
+    path: '/novel',
+    meta: { requiresAuth: true },
+    children: [
+      {
+        path: '',
+        name: 'NovelList',
+        component: () => import('@/views/Novel/List.vue')
+      },
+      {
+        path: 'upload',
+        name: 'NovelUpload',
+        component: () => import('@/views/Novel/Upload.vue')
+      },
+      {
+        path: ':id',
+        name: 'NovelDetail',
+        component: () => import('@/views/Novel/Detail.vue')
+      },
+      {
+        path: 'chapters/:chapterId',
+        name: 'ChapterDetail',
+        component: () => import('@/views/Novel/ChapterDetail.vue')
+      }
+    ]
   }
 ]
 
