@@ -17,54 +17,80 @@ const routes: RouteRecordRaw[] = [
   },
   {
     path: '/',
-    name: 'Home',
-    component: () => import('@/views/Home.vue'),
-    meta: { requiresAuth: true }
-  },
-  {
-    path: '/workflow',
+    component: () => import('@/layouts/MainLayout.vue'),
     meta: { requiresAuth: true },
     children: [
       {
         path: '',
+        name: 'Home',
+        component: () => import('@/views/Home.vue'),
+        meta: { title: '首页', requiresAuth: true }
+      },
+      {
+        path: 'workflow',
         name: 'WorkflowList',
-        component: () => import('@/views/Workflow/List.vue')
+        component: () => import('@/views/Workflow/List.vue'),
+        meta: { title: '工作流管理', requiresAuth: true }
       },
       {
-        path: 'create',
+        path: 'workflow/create',
         name: 'WorkflowCreate',
-        component: () => import('@/views/Workflow/Create.vue')
+        component: () => import('@/views/Workflow/Create.vue'),
+        meta: { title: '创建工作流', requiresAuth: true }
       },
       {
-        path: ':id',
+        path: 'workflow/:id',
         name: 'WorkflowDetail',
-        component: () => import('@/views/Workflow/Detail.vue')
-      }
-    ]
-  },
-  {
-    path: '/novel',
-    meta: { requiresAuth: true },
-    children: [
+        component: () => import('@/views/Workflow/Detail.vue'),
+        meta: { title: '工作流详情', requiresAuth: true }
+      },
       {
-        path: '',
+        path: 'workflow/shots',
+        name: 'WorkflowShotEditor',
+        component: () => import('@/views/Workflow/ShotEditor.vue'),
+        meta: { title: '分镜头编辑', requiresAuth: true }
+      },
+      {
+        path: 'workflow/images',
+        name: 'WorkflowImageReview',
+        component: () => import('@/views/Workflow/ImageReview.vue'),
+        meta: { title: '图片 Review', requiresAuth: true }
+      },
+      {
+        path: 'workflow/audios',
+        name: 'WorkflowAudioReview',
+        component: () => import('@/views/Workflow/AudioReview.vue'),
+        meta: { title: '音频 Review', requiresAuth: true }
+      },
+      {
+        path: 'workflow/videos',
+        name: 'WorkflowVideoReview',
+        component: () => import('@/views/Workflow/VideoReview.vue'),
+        meta: { title: '视频 Review', requiresAuth: true }
+      },
+      {
+        path: 'novel',
         name: 'NovelList',
-        component: () => import('@/views/Novel/List.vue')
+        component: () => import('@/views/Novel/List.vue'),
+        meta: { title: '小说管理', requiresAuth: true }
       },
       {
-        path: 'upload',
+        path: 'novel/upload',
         name: 'NovelUpload',
-        component: () => import('@/views/Novel/Upload.vue')
+        component: () => import('@/views/Novel/Upload.vue'),
+        meta: { title: '上传小说', requiresAuth: true }
       },
       {
-        path: ':id',
+        path: 'novel/:id',
         name: 'NovelDetail',
-        component: () => import('@/views/Novel/Detail.vue')
+        component: () => import('@/views/Novel/Detail.vue'),
+        meta: { title: '小说详情', requiresAuth: true }
       },
       {
-        path: 'chapters/:chapterId',
+        path: 'novel/chapters/:chapterId',
         name: 'ChapterDetail',
-        component: () => import('@/views/Novel/ChapterDetail.vue')
+        component: () => import('@/views/Novel/ChapterDetail.vue'),
+        meta: { title: '章节详情', requiresAuth: true }
       }
     ]
   }

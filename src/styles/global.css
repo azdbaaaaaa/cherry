@@ -64,34 +64,41 @@ a:hover {
 .el-button--primary:hover {
   background: var(--primary-gradient-hover);
   box-shadow: var(--shadow-md);
-  transform: translateY(-1px);
+  /* 移除 transform，保持按钮位置稳定 */
 }
 
-/* 卡片增强 */
+/* 卡片增强 - 创作平台风格：稳定、专业 */
 .el-card {
   border-radius: var(--border-radius-lg);
   border: 1px solid var(--border-color);
   box-shadow: var(--shadow);
-  transition: all var(--transition-base);
+  background-color: var(--bg-primary);
+  transition: border-color var(--transition-fast);
+  /* 移除 hover 时的 transform，保持稳定 */
 }
 
 .el-card:hover {
-  box-shadow: var(--shadow-lg);
-  transform: translateY(-2px);
+  border-color: var(--primary-color);
+  /* 只改变边框颜色，不改变位置和阴影 */
 }
 
-/* 输入框增强 */
+/* 输入框增强 - 创作平台风格：稳定、专业 */
 .el-input__wrapper {
   border-radius: var(--border-radius);
-  transition: all var(--transition-base);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  background-color: var(--bg-primary);
+  border: 1px solid var(--border-color);
 }
 
 .el-input__wrapper:hover {
-  box-shadow: var(--shadow-sm);
+  border-color: var(--primary-color);
+  /* 移除阴影变化，保持稳定 */
 }
 
 .el-input__wrapper.is-focus {
-  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.2);
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.1);
+  /* 使用更柔和的焦点效果 */
 }
 
 /* 玻璃态效果类 */

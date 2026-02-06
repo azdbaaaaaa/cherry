@@ -299,6 +299,69 @@ export const novelApi = {
     return request.get<GetVideosByStatusResponse>('/api/v1/videos', {
       params: { status }
     })
+  },
+
+  // ========== 分镜头管理 ==========
+
+  /**
+   * 更新分镜头信息
+   */
+  updateShot(shotId: string, data: import('@/types/novel').UpdateShotRequest) {
+    return request.put(`/api/v1/shots/${shotId}`, data)
+  },
+
+  /**
+   * 重新生成分镜头脚本
+   */
+  regenerateShotScript(shotId: string) {
+    return request.post(`/api/v1/shots/${shotId}/regenerate`)
+  },
+
+  // ========== 图片生成（角色、场景、道具）==========
+
+  /**
+   * 生成角色图片
+   */
+  generateCharacterImages(novelId: string) {
+    return request.post<{ novel_id: string; image_ids: string[]; count: number }>(
+      `/api/v1/novels/${novelId}/characters/images`
+    )
+  },
+
+  /**
+   * 生成场景图片
+   */
+  generateSceneImages(narrationId: string) {
+    return request.post<{ narration_id: string; image_ids: string[]; count: number }>(
+      `/api/v1/narrations/${narrationId}/scenes/images`
+    )
+  },
+
+  /**
+   * 生成道具图片
+   */
+  generatePropImages(novelId: string) {
+    return request.post<{ novel_id: string; image_ids: string[]; count: number }>(
+      `/api/v1/novels/${novelId}/props/images`
+    )
+  },
+
+  /**
+   * 获取小说的角色列表
+   */
+  getCharacters(novelId: string) {
+    return request.get<{ characters: import('@/types/novel').Character[] }>(
+      `/api/v1/novels/${novelId}/characters`
+    )
+  },
+
+  /**
+   * 获取小说的道具列表
+   */
+  getProps(novelId: string) {
+    return request.get<{ props: import('@/types/novel').Prop[] }>(
+      `/api/v1/novels/${novelId}/props`
+    )
   }
 }
 

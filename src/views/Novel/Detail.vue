@@ -1,14 +1,9 @@
 <template>
   <div class="novel-detail">
-    <header class="page-header glass">
+    <!-- 页面标题和操作 -->
+    <div class="page-header">
       <div class="header-content">
-        <div class="header-left">
-          <el-button text @click="goBack" class="back-button">
-            <el-icon><ArrowLeft /></el-icon>
-            返回
-          </el-button>
-          <h1 class="page-title">小说详情</h1>
-        </div>
+        <h1 class="page-title">小说详情</h1>
         <div class="header-actions">
           <el-button
             v-if="novel"
@@ -20,9 +15,10 @@
           </el-button>
         </div>
       </div>
-    </header>
+    </div>
 
-    <main class="page-main">
+    <!-- 主要内容 -->
+    <div class="page-content">
       <div class="detail-container">
         <!-- 小说信息卡片 -->
         <el-card class="detail-card glass" v-loading="loading">
@@ -273,9 +269,6 @@ const goToUpload = () => {
 }
 
 // 返回
-const goBack = () => {
-  router.back()
-}
 
 onMounted(async () => {
   await fetchNovel()
@@ -327,14 +320,13 @@ onMounted(async () => {
   color: var(--text-primary);
 }
 
-.page-main {
-  padding: var(--spacing-xl) 0;
+.page-content {
+  /* 内容区域样式已由布局组件处理 */
 }
 
 .detail-container {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
 }
 
 .detail-card {

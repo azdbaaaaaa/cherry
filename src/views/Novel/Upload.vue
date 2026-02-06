@@ -1,20 +1,12 @@
 <template>
   <div class="novel-upload">
-    <!-- 顶部导航栏 -->
-    <header class="page-header glass">
-      <div class="header-content">
-        <div class="header-left">
-          <el-button text @click="goBack" class="back-button">
-            <el-icon><ArrowLeft /></el-icon>
-            返回
-          </el-button>
-          <h1 class="page-title">上传小说</h1>
-        </div>
-      </div>
-    </header>
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1 class="page-title">上传小说</h1>
+    </div>
 
     <!-- 主要内容 -->
-    <main class="page-main">
+    <div class="page-content">
       <div class="upload-container">
         <el-card class="upload-card glass">
           <!-- 步骤指示器 -->
@@ -294,7 +286,6 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import {
-  ArrowLeft,
   UploadFilled,
   InfoFilled,
   Check,
@@ -646,26 +637,15 @@ const goToPreviousStep = () => {
 }
 
 // 返回
-const goBack = () => {
-  router.back()
-}
 </script>
 
 <style scoped>
 .novel-upload {
-  width: 100%;
-  min-height: 100vh;
-  background: var(--bg-secondary);
+  height: 100%;
 }
 
-/* 顶部导航栏 */
 .page-header {
-  position: sticky;
-  top: 0;
-  z-index: 100;
-  padding: var(--spacing-lg) var(--spacing-xl);
-  border-bottom: 1px solid var(--border-color);
-  margin-bottom: var(--spacing-xl);
+  margin-bottom: 24px;
 }
 
 .header-content {
@@ -695,14 +675,13 @@ const goBack = () => {
 }
 
 /* 主要内容 */
-.page-main {
-  padding: var(--spacing-xl) 0;
+.page-content {
+  /* 内容区域样式已由布局组件处理 */
 }
 
 .upload-container {
   max-width: 1000px;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
 }
 
 .upload-card {

@@ -1,32 +1,28 @@
 <template>
   <div class="workflow-list">
-    <!-- 顶部导航栏 -->
-    <header class="page-header glass">
+    <!-- 页面标题和操作 -->
+    <div class="page-header">
       <div class="header-content">
         <div class="header-left">
-          <h1 class="page-title">
-            <el-icon><VideoPlay /></el-icon>
-            工作流管理
-          </h1>
+          <h1 class="page-title">工作流管理</h1>
           <p class="page-subtitle">管理和监控您的AI视频生成工作流</p>
         </div>
         <el-button
           type="primary"
           size="large"
           @click="goToCreate"
-          class="create-button"
         >
           <el-icon><Plus /></el-icon>
           创建工作流
         </el-button>
       </div>
-    </header>
+    </div>
 
     <!-- 主要内容 -->
-    <main class="page-main">
+    <div class="page-content">
       <div class="container">
         <!-- 筛选栏 -->
-        <div class="filter-bar glass">
+        <div class="filter-bar">
           <el-input
             v-model="searchQuery"
             placeholder="搜索工作流名称..."
@@ -69,7 +65,7 @@
           <div
             v-for="workflow in filteredWorkflows"
             :key="workflow.id"
-            class="workflow-card glass fade-in"
+            class="workflow-card fade-in"
             @click="goToDetail(workflow.id)"
           >
             <!-- 卡片头部 -->
@@ -283,7 +279,7 @@ onMounted(() => {
   background: var(--bg-secondary);
 }
 
-/* 顶部导航栏 */
+/* 顶部导航栏 - 创作平台风格 */
 .page-header {
   position: sticky;
   top: 0;
@@ -291,6 +287,8 @@ onMounted(() => {
   padding: var(--spacing-lg) var(--spacing-xl);
   border-bottom: 1px solid var(--border-color);
   margin-bottom: var(--spacing-xl);
+  background: var(--bg-primary);
+  /* 使用纯色背景，更专业 */
 }
 
 .header-content {
@@ -328,23 +326,25 @@ onMounted(() => {
 }
 
 /* 主要内容 */
-.page-main {
-  padding: var(--spacing-xl) 0;
+.page-content {
+  /* 内容区域样式已由布局组件处理 */
 }
 
 .container {
-  max-width: 1200px;
+  max-width: 1400px;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
 }
 
-/* 筛选栏 */
+/* 筛选栏 - 创作平台风格 */
 .filter-bar {
   display: flex;
   gap: var(--spacing-md);
   padding: var(--spacing-lg);
   margin-bottom: var(--spacing-xl);
   border-radius: var(--border-radius-lg);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  /* 使用纯色背景，更专业 */
 }
 
 .search-input {
@@ -363,14 +363,17 @@ onMounted(() => {
   gap: var(--spacing-xl);
 }
 
-/* 工作流卡片 */
+/* 工作流卡片 - 创作平台风格：稳定、专业 */
 .workflow-card {
   padding: var(--spacing-xl);
   border-radius: var(--border-radius-lg);
   cursor: pointer;
-  transition: all var(--transition-base);
+  transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
   position: relative;
   overflow: hidden;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  /* 使用纯色背景，更专业 */
 }
 
 .workflow-card::before {
@@ -379,19 +382,22 @@ onMounted(() => {
   top: 0;
   left: 0;
   right: 0;
-  height: 4px;
-  background: var(--primary-gradient);
-  transform: scaleX(0);
-  transition: transform var(--transition-base);
+  height: 3px;
+  background: var(--primary-color);
+  opacity: 0;
+  transition: opacity var(--transition-fast);
+  /* 移除 transform，使用 opacity */
 }
 
 .workflow-card:hover {
-  transform: translateY(-4px);
-  box-shadow: var(--shadow-xl);
+  border-color: var(--primary-color);
+  box-shadow: var(--shadow-md);
+  /* 移除 transform，保持位置稳定 */
 }
 
 .workflow-card:hover::before {
-  transform: scaleX(1);
+  opacity: 1;
+  /* 只改变透明度，不改变位置 */
 }
 
 .card-header {
@@ -420,12 +426,13 @@ onMounted(() => {
 .card-arrow {
   color: var(--text-tertiary);
   font-size: 1.5rem;
-  transition: all var(--transition-base);
+  transition: color var(--transition-fast);
+  /* 移除 transform，保持位置稳定 */
 }
 
 .workflow-card:hover .card-arrow {
   color: var(--primary-color);
-  transform: translateX(4px);
+  /* 只改变颜色，不改变位置 */
 }
 
 /* 进度条 */

@@ -1,29 +1,25 @@
 <template>
   <div class="novel-list">
-    <!-- 顶部导航栏 -->
-    <header class="page-header glass">
+    <!-- 页面标题和操作 -->
+    <div class="page-header">
       <div class="header-content">
         <div class="header-left">
-          <h1 class="page-title">
-            <el-icon><Document /></el-icon>
-            小说管理
-          </h1>
+          <h1 class="page-title">小说管理</h1>
           <p class="page-subtitle">管理和查看您的小说作品</p>
         </div>
         <el-button
           type="primary"
           size="large"
           @click="goToUpload"
-          class="create-button"
         >
           <el-icon><Plus /></el-icon>
           上传新小说
         </el-button>
       </div>
-    </header>
+    </div>
 
     <!-- 主要内容 -->
-    <main class="page-main">
+    <div class="page-content">
       <div class="container">
         <!-- 筛选栏 -->
         <div class="filter-bar glass">

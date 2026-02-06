@@ -129,11 +129,71 @@ export interface ShotInfo {
   user_id: string
   shot_number: string
   character?: string
+  image?: string
   narration: string
-  scene_prompt?: string
+  sound_effect?: string
+  duration?: number
+  image_prompt: string
   video_prompt?: string
+  camera_movement?: string
   sequence: number
   index: number
+  version: number
+  status: string
+  error_message?: string
+  created_at: string
+  updated_at: string
+}
+
+export interface UpdateShotRequest {
+  narration?: string
+  image_prompt?: string
+  video_prompt?: string
+  camera_movement?: string
+  duration?: number
+}
+
+export interface Character {
+  id: string
+  novel_id: string
+  workflow_id: string
+  name: string
+  gender?: string
+  age_group?: string
+  role_number?: string
+  description: string
+  image_prompt: string
+  image_resource_id?: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface Prop {
+  id: string
+  novel_id: string
+  workflow_id: string
+  name: string
+  description: string
+  image_prompt: string
+  image_resource_id?: string
+  category?: string
+  status: string
+  created_at: string
+  updated_at: string
+}
+
+export interface SceneInfo {
+  id: string
+  narration_id: string
+  chapter_id: string
+  user_id: string
+  scene_number: string
+  description: string
+  image_prompt: string
+  image_resource_id?: string
+  narration?: string
+  sequence: number
   version: number
   status: string
   created_at: string
@@ -226,11 +286,13 @@ export interface Image {
   id: string
   chapter_id: string
   narration_id: string
-  user_id: string
-  sequence: number
+  scene_number: string
+  shot_number: string
+  character_name?: string
   image_resource_id: string
   prompt: string
   version: number
+  sequence: number
   status: 'pending' | 'completed' | 'failed'
   created_at: string
   updated_at: string

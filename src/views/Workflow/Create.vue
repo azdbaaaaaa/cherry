@@ -1,30 +1,18 @@
 <template>
   <div class="workflow-create">
-    <!-- 顶部导航栏 -->
-    <header class="page-header glass">
-      <div class="header-content">
-        <div class="header-left">
-          <el-button
-            text
-            @click="goBack"
-            class="back-button"
-          >
-            <el-icon><ArrowLeft /></el-icon>
-            返回
-          </el-button>
-          <h1 class="page-title">创建工作流</h1>
-        </div>
-      </div>
-    </header>
+    <!-- 页面标题 -->
+    <div class="page-header">
+      <h1 class="page-title">创建剧本</h1>
+    </div>
 
     <!-- 主要内容 -->
-    <main class="page-main">
+    <div class="page-content">
       <div class="form-container">
-        <el-card class="form-card glass">
+        <el-card class="form-card">
           <template #header>
             <div class="card-header">
-              <h2 class="card-title">工作流配置</h2>
-              <p class="card-subtitle">填写以下信息以创建新的AI视频生成工作流</p>
+              <h2 class="card-title">剧本内容与配置</h2>
+              <p class="card-subtitle">上传剧本文件并配置视频生成参数</p>
             </div>
           </template>
 
@@ -35,25 +23,11 @@
             label-position="top"
             class="workflow-form"
           >
-            <!-- 工作流名称 -->
-            <el-form-item label="工作流名称" prop="name">
-              <el-input
-                v-model="form.name"
-                placeholder="例如：我的第一个视频项目"
-                size="large"
-                clearable
-              >
-                <template #prefix>
-                  <el-icon><Edit /></el-icon>
-                </template>
-              </el-input>
-            </el-form-item>
-
-            <!-- 输入类型 -->
-            <el-form-item label="输入类型" prop="input_type">
+            <!-- 输入方式 -->
+            <el-form-item label="输入方式" prop="input_type">
               <el-select
                 v-model="form.input_type"
-                placeholder="请选择输入类型"
+                placeholder="请选择输入方式"
                 size="large"
                 class="full-width"
               >
@@ -69,6 +43,68 @@
                   </div>
                 </el-option>
               </el-select>
+            </el-form-item>
+
+            <!-- 文件上传 -->
+            <el-form-item
+              v-if="form.input_type === 'file'"
+              label="上传剧本文件"
+              prop="file"
+            >
+              <el-upload
+                class="file-upload"
+                drag
+                :auto-upload="false"
+                :on-change="handleFileChange"
+                :on-remove="handleFileRemove"
+                :limit="1"
+                :accept="getAcceptTypes()"
+              >
+                <el-icon class="upload-icon"><UploadFilled /></el-icon>
+                <div class="upload-text">
+                  <p class="upload-title">点击或拖拽剧本文件到此区域上传</p>
+                  <p class="upload-tip">
+                    支持 {{ getFileTypesText() }} 文件，最大 100MB
+                  </p>
+                </div>
+                <template #tip>
+                  <div class="upload-tip-text">
+                    <el-icon><InfoFilled /></el-icon>
+                    请上传符合要求的文件格式
+                  </div>
+                </template>
+              </el-upload>
+            </el-form-item>
+
+            <!-- 文本输入 -->
+            <el-form-item
+              v-if="form.input_type === 'text'"
+              label="输入剧本内容"
+              prop="text_content"
+            >
+              <el-input
+                v-model="form.text_content"
+                type="textarea"
+                :rows="12"
+                placeholder="请输入剧本文本内容..."
+                class="textarea-input"
+                show-word-limit
+                maxlength="10000"
+              />
+            </el-form-item>
+
+            <!-- 剧本名称 -->
+            <el-form-item label="剧本名称" prop="name">
+              <el-input
+                v-model="form.name"
+                placeholder="从文件名自动提取，也可手动修改"
+                size="large"
+                clearable
+              >
+                <template #prefix>
+                  <el-icon><Edit /></el-icon>
+                </template>
+              </el-input>
             </el-form-item>
 
             <!-- 旁白类型 -->
@@ -93,53 +129,28 @@
               </el-select>
             </el-form-item>
 
-            <!-- 文本输入 -->
-            <el-form-item
-              v-if="form.input_type === 'text'"
-              label="输入内容"
-              prop="text_content"
-            >
-              <el-input
-                v-model="form.text_content"
-                type="textarea"
-                :rows="12"
-                placeholder="请输入文本内容..."
-                class="textarea-input"
-                show-word-limit
-                maxlength="10000"
-              />
+            <!-- 风格选择 -->
+            <el-form-item label="风格" prop="style">
+              <el-select
+                v-model="form.style"
+                placeholder="请选择视频风格"
+                size="large"
+                class="full-width"
+              >
+                <el-option
+                  v-for="style in styles"
+                  :key="style.value"
+                  :label="style.label"
+                  :value="style.value"
+                >
+                  <div class="option-item">
+                    <el-icon><component :is="style.icon" /></el-icon>
+                    <span>{{ style.label }}</span>
+                  </div>
+                </el-option>
+              </el-select>
             </el-form-item>
 
-            <!-- 文件上传 -->
-            <el-form-item
-              v-if="form.input_type === 'file'"
-              label="上传文件"
-              prop="file"
-            >
-              <el-upload
-                class="file-upload"
-                drag
-                :auto-upload="false"
-                :on-change="handleFileChange"
-                :on-remove="handleFileRemove"
-                :limit="1"
-                :accept="getAcceptTypes()"
-              >
-                <el-icon class="upload-icon"><UploadFilled /></el-icon>
-                <div class="upload-text">
-                  <p class="upload-title">点击或拖拽文件到此区域上传</p>
-                  <p class="upload-tip">
-                    支持 {{ getFileTypesText() }} 文件，最大 100MB
-                  </p>
-                </div>
-                <template #tip>
-                  <div class="upload-tip-text">
-                    <el-icon><InfoFilled /></el-icon>
-                    请上传符合要求的文件格式
-                  </div>
-                </template>
-              </el-upload>
-            </el-form-item>
 
 
             <!-- 提交按钮 -->
@@ -152,7 +163,7 @@
                 class="submit-button"
               >
                 <el-icon v-if="!submitting"><Check /></el-icon>
-                {{ submitting ? '创建中...' : '创建工作流' }}
+                {{ submitting ? '创建中...' : '创建剧本' }}
               </el-button>
               <el-button
                 size="large"
@@ -182,7 +193,9 @@ import {
   Picture,
   Files,
   Microphone,
-  ChatLineRound
+  ChatLineRound,
+  VideoCamera,
+  UserFilled
 } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
 import { workflowApi, type CreateWorkflowRequest } from '@/api/workflow'
@@ -204,18 +217,26 @@ const narrationTypes = [
   { value: 'dialogue', label: '真人对话', icon: ChatLineRound }
 ]
 
+const styles = [
+  { value: 'anime', label: '漫剧（动画风格）', icon: VideoCamera },
+  { value: 'live', label: '真人剧（真人风格）', icon: UserFilled },
+  { value: 'mixed', label: '混合风格', icon: Picture }
+]
+
 const form = reactive({
   name: '',
-  input_type: 'text' as 'text' | 'file',
+  input_type: 'file' as 'text' | 'file', // 默认选择文件上传
   text_content: '',
   resource_id: '',
-  narration_type: 'narration' as 'narration' | 'dialogue'
+  narration_type: 'narration' as 'narration' | 'dialogue',
+  style: 'anime' as 'anime' | 'live' | 'mixed' // 默认选择漫剧
 })
 
 const rules: FormRules = {
   name: [{ required: true, message: '请输入工作流名称', trigger: 'blur' }],
   input_type: [{ required: true, message: '请选择输入类型', trigger: 'change' }],
   narration_type: [{ required: true, message: '请选择旁白类型', trigger: 'change' }],
+  style: [{ required: true, message: '请选择风格', trigger: 'change' }],
   text_content: [
     {
       validator: (rule, value, callback) => {
@@ -240,8 +261,21 @@ const getFileTypesText = () => {
   return 'TXT、DOC、DOCX、PDF'
 }
 
+// 从文件名提取剧本名称（去除扩展名）
+const extractNovelName = (fileName: string): string => {
+  // 去除扩展名
+  const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '')
+  // 去除常见的括号内容，如 "大道主(飘荡的云)" -> "大道主"
+  const nameWithoutBrackets = nameWithoutExt.replace(/\([^)]*\)/g, '').trim()
+  return nameWithoutBrackets || nameWithoutExt
+}
+
 const handleFileChange = (file: any) => {
   selectedFile.value = file.raw
+  // 如果名称为空，从文件名提取剧本名称
+  if (!form.name && file.name) {
+    form.name = extractNovelName(file.name)
+  }
   if (formRef.value) {
     formRef.value.validateField('text_content')
   }
@@ -287,7 +321,8 @@ const submit = async () => {
       const data: CreateWorkflowRequest = {
         name: form.name,
         input_type: form.input_type,
-        narration_type: form.narration_type
+        narration_type: form.narration_type,
+        style: form.style
       }
 
       if (form.input_type === 'text') {
@@ -318,9 +353,10 @@ const goBack = () => {
   width: 100%;
   min-height: 100vh;
   background: var(--bg-secondary);
+  /* 创作平台风格：简洁、专业 */
 }
 
-/* 顶部导航栏 */
+/* 顶部导航栏 - 创作平台风格 */
 .page-header {
   position: sticky;
   top: 0;
@@ -328,6 +364,8 @@ const goBack = () => {
   padding: var(--spacing-lg) var(--spacing-xl);
   border-bottom: 1px solid var(--border-color);
   margin-bottom: var(--spacing-xl);
+  background: var(--bg-primary);
+  /* 使用纯色背景，更专业 */
 }
 
 .header-content {
@@ -357,19 +395,21 @@ const goBack = () => {
 }
 
 /* 主要内容 */
-.page-main {
-  padding: var(--spacing-xl) 0;
+.page-content {
+  /* 内容区域样式已由布局组件处理 */
 }
 
 .form-container {
   max-width: 900px;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
 }
 
 .form-card {
   border-radius: var(--border-radius-xl);
   overflow: hidden;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  /* 移除 glass 效果，使用更专业的纯色背景 */
 }
 
 .card-header {
@@ -381,22 +421,46 @@ const goBack = () => {
   font-weight: 700;
   margin-bottom: var(--spacing-sm);
   color: var(--text-primary);
+  letter-spacing: -0.02em;
+  /* 更专业的字体间距 */
 }
 
 .card-subtitle {
   color: var(--text-secondary);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+  font-weight: 400;
+  /* 更清晰的层级 */
 }
 
-/* 表单 */
+/* 表单 - 创作平台风格 */
 .workflow-form {
   padding: var(--spacing-xl) 0;
+}
+
+/* 输入框样式优化 */
+:deep(.el-input__inner),
+:deep(.el-textarea__inner) {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: var(--text-primary);
+}
+
+:deep(.el-select .el-input__wrapper) {
+  cursor: pointer;
+}
+
+/* 移除所有 hover 时的 transform 效果 */
+:deep(.el-input__wrapper:hover),
+:deep(.el-textarea__inner:hover) {
+  /* 只改变边框颜色，不改变位置 */
 }
 
 :deep(.el-form-item__label) {
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: var(--spacing-sm);
+  font-size: 0.95rem;
+  /* 更清晰的标签样式 */
 }
 
 .full-width {
@@ -420,15 +484,17 @@ const goBack = () => {
 :deep(.el-upload-dragger) {
   width: 100%;
   padding: var(--spacing-2xl);
-  background: var(--bg-secondary);
+  background: var(--bg-primary);
   border: 2px dashed var(--border-color);
   border-radius: var(--border-radius-lg);
-  transition: all var(--transition-base);
+  transition: border-color var(--transition-fast), background-color var(--transition-fast);
+  /* 移除 transform，保持稳定 */
 }
 
 :deep(.el-upload-dragger:hover) {
   border-color: var(--primary-color);
-  background: rgba(99, 102, 241, 0.05);
+  background: rgba(99, 102, 241, 0.03);
+  /* 只改变颜色，不改变位置 */
 }
 
 .upload-icon {
@@ -495,6 +561,8 @@ const goBack = () => {
   padding: var(--spacing-md) var(--spacing-xl);
   font-size: 1rem;
   height: auto;
+  font-weight: 600;
+  /* 更明确的按钮样式 */
 }
 
 .cancel-button {
@@ -502,6 +570,8 @@ const goBack = () => {
   padding: var(--spacing-md) var(--spacing-xl);
   font-size: 1rem;
   height: auto;
+  font-weight: 500;
+  /* 次要按钮样式 */
 }
 
 /* 响应式设计 */

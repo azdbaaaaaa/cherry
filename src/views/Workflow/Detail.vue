@@ -1,17 +1,9 @@
 <template>
   <div class="workflow-detail">
-    <!-- 顶部导航栏 -->
-    <header class="page-header glass">
+    <!-- 页面标题和操作 -->
+    <div class="page-header">
       <div class="header-content">
         <div class="header-left">
-          <el-button
-            text
-            @click="goBack"
-            class="back-button"
-          >
-            <el-icon><ArrowLeft /></el-icon>
-            返回
-          </el-button>
           <h1 class="page-title">{{ workflow?.name || '工作流详情' }}</h1>
         </div>
         <div class="header-actions">
@@ -49,20 +41,20 @@
           </el-button>
         </div>
       </div>
-    </header>
+    </div>
 
     <!-- 主要内容 -->
-    <main class="page-main">
+    <div class="page-content">
       <div class="content-container">
         <!-- 加载状态 -->
-        <el-card v-if="loading" class="content-card glass">
+        <el-card v-if="loading" class="content-card">
           <el-skeleton :rows="5" animated />
         </el-card>
         
         <!-- 工作流详情 -->
         <template v-else-if="workflow">
           <!-- 状态和进度 -->
-          <el-card class="content-card glass status-card">
+          <el-card class="content-card status-card">
             <template #header>
               <div class="card-header">
                 <h2 class="card-title">工作流状态</h2>
@@ -90,17 +82,28 @@
               <el-descriptions-item label="旁白类型">
                 {{ workflow.narration_type === 'narration' ? '旁白/解说' : '真人对话' }}
               </el-descriptions-item>
+              <el-descriptions-item label="风格">
+                {{ getStyleLabel(workflow.style) }}
+              </el-descriptions-item>
               <el-descriptions-item label="创建时间">
                 {{ formatTime(workflow.created_at) }}
               </el-descriptions-item>
               <el-descriptions-item label="更新时间" :span="2">
                 {{ formatTime(workflow.updated_at) }}
               </el-descriptions-item>
+              <el-descriptions-item v-if="workflow.status === 'failed' && workflow.error_message" label="错误信息" :span="2">
+                <el-alert
+                  :title="workflow.error_message"
+                  type="error"
+                  :closable="false"
+                  show-icon
+                />
+              </el-descriptions-item>
             </el-descriptions>
           </el-card>
           
           <!-- 阶段详情 -->
-          <el-card class="content-card glass stages-card">
+          <el-card class="content-card stages-card">
             <template #header>
               <div class="card-header">
                 <h2 class="card-title">阶段详情</h2>
@@ -119,6 +122,17 @@
                   <h4 class="stage-title">{{ stage.label }}</h4>
                   <p class="stage-status" v-if="stage.status">{{ stage.status }}</p>
                   <p class="stage-description" v-if="stage.description">{{ stage.description }}</p>
+                  <div class="stage-actions" v-if="stage.actions && stage.actions.length > 0">
+                    <el-button
+                      v-for="action in stage.actions"
+                      :key="action.key"
+                      :type="action.type || 'default'"
+                      size="small"
+                      @click="handleStageAction(action)"
+                    >
+                      {{ action.label }}
+                    </el-button>
+                  </div>
                 </div>
               </el-timeline-item>
             </el-timeline>
@@ -126,27 +140,31 @@
         </template>
 
         <!-- 错误状态 -->
-        <el-card v-else class="content-card glass">
+        <el-card v-else class="content-card">
           <el-empty description="工作流不存在或加载失败" />
         </el-card>
       </div>
-    </main>
+    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ArrowLeft, CircleCheck, Clock, Loading, VideoPlay } from '@element-plus/icons-vue'
+import { CircleCheck, Clock, Loading, VideoPlay } from '@element-plus/icons-vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { workflowApi } from '@/api/workflow'
 import type { Workflow } from '@/types/workflow'
+import type { Novel, Chapter, Narration } from '@/types/novel'
 
 const route = useRoute()
 const router = useRouter()
 const loading = ref(false)
 const actionLoading = ref(false)
 const workflow = ref<Workflow | null>(null)
+const novel = ref<Novel | null>(null)
+const chapters = ref<Chapter[]>([])
+const narrations = ref<Narration[]>([])
 const pollInterval = ref<number | null>(null)
 
 const workflowId = computed(() => route.params.id as string)
@@ -155,9 +173,21 @@ const fetchWorkflow = async () => {
   try {
     const res = await workflowApi.get(workflowId.value)
     workflow.value = res.data
+    // 获取关联的小说和章节信息
+    await fetchRelatedData()
   } catch (error) {
     ElMessage.error('获取工作流详情失败')
     console.error(error)
+  }
+}
+
+const fetchRelatedData = async () => {
+  if (!workflow.value) return
+  try {
+    // 通过 workflowId 查询小说（需要后端支持，暂时跳过）
+    // 这里简化处理，实际应该通过 workflowId 查询
+  } catch (error) {
+    console.error('获取关联数据失败', error)
   }
 }
 
@@ -211,6 +241,15 @@ const getStageLabel = (stage: string) => {
   return map[stage] || stage
 }
 
+const getStyleLabel = (style: string) => {
+  const map: Record<string, string> = {
+    anime: '漫剧（动画风格）',
+    live: '真人剧（真人风格）',
+    mixed: '混合风格'
+  }
+  return map[style] || style
+}
+
 const getProgressStatus = (status: string) => {
   if (status === 'completed') return 'success'
   if (status === 'failed') return 'exception'
@@ -259,7 +298,8 @@ const stages = computed(() => {
         description: stageDescriptions[name],
         type: 'info' as const,
         icon: Clock,
-        timestamp: ''
+        timestamp: '',
+        actions: getStageActions(name, false, false)
       }
     }
     
@@ -287,10 +327,85 @@ const stages = computed(() => {
       description: stageDescriptions[name],
       type,
       icon,
-      timestamp: isCompleted ? '已完成' : isCurrent ? '进行中' : ''
+      timestamp: isCompleted ? '已完成' : isCurrent ? '进行中' : '',
+      actions: getStageActions(name, isCompleted, isCurrent)
     }
   })
 })
+
+const getStageActions = (stageName: string, isCompleted: boolean, isCurrent: boolean) => {
+  // 只有已完成或当前阶段才显示操作按钮
+  if (!isCompleted && !isCurrent) return []
+  
+  const actions: Array<{ key: string; label: string; type?: string; route: string; params?: Record<string, string> }> = []
+  
+  // 获取第一个章节和第一个解说（简化处理）
+  const firstChapter = chapters.value[0]
+  const firstNarration = narrations.value[0]
+  
+  switch (stageName) {
+    case 'storyboard':
+      // 分镜生成：编辑分镜头脚本
+      if (firstNarration) {
+        actions.push({
+          key: 'edit-shots',
+          label: '编辑分镜头',
+          type: 'primary',
+          route: '/workflow/shots',
+          params: { narrationId: firstNarration.id }
+        })
+      }
+      break
+    case 'asset':
+      // 资产设计：查看图片、音频
+      if (firstNarration) {
+        actions.push({
+          key: 'review-images',
+          label: '查看图片',
+          type: 'primary',
+          route: '/workflow/images',
+          params: { 
+            narrationId: firstNarration.id,
+            novelId: novel.value?.id || ''
+          }
+        })
+        actions.push({
+          key: 'review-audios',
+          label: '查看音频',
+          type: 'primary',
+          route: '/workflow/audios',
+          params: { narrationId: firstNarration.id }
+        })
+      }
+      break
+    case 'video':
+      // 视频生成：查看视频
+      if (firstChapter) {
+        actions.push({
+          key: 'review-videos',
+          label: '查看视频',
+          type: 'primary',
+          route: '/workflow/videos',
+          params: { chapterId: firstChapter.id }
+        })
+      }
+      break
+  }
+  
+  return actions
+}
+
+const handleStageAction = (action: { route: string; params?: Record<string, string> }) => {
+  const params = new URLSearchParams()
+  if (action.params) {
+    Object.entries(action.params).forEach(([key, value]) => {
+      if (value) {
+        params.append(key, value)
+      }
+    })
+  }
+  router.push(`${action.route}?${params.toString()}`)
+}
 
 const pauseWorkflow = async () => {
   actionLoading.value = true
@@ -358,10 +473,6 @@ const cancelWorkflow = async () => {
   }
 }
 
-const goBack = () => {
-  router.back()
-}
-
 onMounted(async () => {
   loading.value = true
   await fetchWorkflow()
@@ -390,7 +501,7 @@ onUnmounted(() => {
   background: var(--bg-secondary);
 }
 
-/* 顶部导航栏 */
+/* 顶部导航栏 - 创作平台风格 */
 .page-header {
   position: sticky;
   top: 0;
@@ -398,6 +509,8 @@ onUnmounted(() => {
   padding: var(--spacing-lg) var(--spacing-xl);
   border-bottom: 1px solid var(--border-color);
   margin-bottom: var(--spacing-xl);
+  background: var(--bg-primary);
+  /* 使用纯色背景，更专业 */
 }
 
 .header-content {
@@ -438,19 +551,17 @@ onUnmounted(() => {
 }
 
 /* 主要内容 */
-.page-main {
-  padding: var(--spacing-xl) 0;
-}
-
 .content-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 var(--spacing-lg);
 }
 
 .content-card {
   margin-bottom: var(--spacing-xl);
   border-radius: var(--border-radius-xl);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  /* 使用纯色背景，更专业 */
 }
 
 .card-header {
@@ -507,6 +618,13 @@ onUnmounted(() => {
   font-size: 0.85rem;
   color: var(--text-tertiary);
   margin: var(--spacing-xs) 0 0 0;
+}
+
+.stage-actions {
+  margin-top: var(--spacing-sm);
+  display: flex;
+  gap: var(--spacing-xs);
+  flex-wrap: wrap;
 }
 
 /* 响应式设计 */
