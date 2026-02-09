@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { ElMessage } from 'element-plus'
+import { nextTick } from 'vue'
 import router from '@/router'
 import { useUserStore } from '@/stores/user'
 
@@ -19,6 +20,15 @@ request.interceptors.request.use(
     // 如果有Access Token，添加到Header
     if (userStore.accessToken) {
       config.headers.Authorization = `Bearer ${userStore.accessToken}`
+      // 调试日志（生产环境可移除）
+      if (import.meta.env.DEV) {
+        console.log('[API Request]', config.method?.toUpperCase(), config.url, 'with token:', userStore.accessToken.substring(0, 20) + '...')
+      }
+    } else {
+      // 调试日志（生产环境可移除）
+      if (import.meta.env.DEV) {
+        console.warn('[API Request]', config.method?.toUpperCase(), config.url, 'without token')
+      }
     }
     
     return config
@@ -50,25 +60,74 @@ request.interceptors.response.use(
     const originalRequest = error.config
     const userStore = useUserStore()
     
-    // 如果是401错误且未重试过
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true
+    // 处理 401 未授权错误
+    if (error.response?.status === 401) {
+      const isRefreshRequest = originalRequest?.url?.includes('/auth/refresh')
       
-      try {
-        // 刷新Token
-        const newToken = await userStore.refreshAccessToken()
-        
-        // 更新请求Header
-        originalRequest.headers.Authorization = `Bearer ${newToken}`
-        
-        // 重试原请求
-        return request(originalRequest)
-      } catch (refreshError) {
-        // 刷新失败，跳转到登录页
+      // 如果是 refresh 接口返回 401，直接清除认证并跳转登录
+      if (isRefreshRequest) {
         userStore.clearAuth()
         ElMessage.error('登录已过期，请重新登录')
-        router.push('/login')
-        return Promise.reject(refreshError)
+        // 使用 nextTick 确保路由状态已更新
+        nextTick(() => {
+          if (router.currentRoute.value.name !== 'Login') {
+            router.push({ name: 'Login', query: { redirect: router.currentRoute.value.fullPath } })
+          }
+        })
+        return Promise.reject(error)
+      }
+      
+      // 如果是其他接口返回 401，尝试刷新 token
+      if (originalRequest && !originalRequest._retry) {
+        originalRequest._retry = true
+        
+        // 检查是否有 refresh token
+        if (!userStore.refreshToken) {
+          const storedRefreshToken = localStorage.getItem('refresh_token')
+          if (!storedRefreshToken) {
+            // 没有 refresh token，直接跳转登录
+            userStore.clearAuth()
+            ElMessage.error('请先登录')
+            nextTick(() => {
+              if (router.currentRoute.value.name !== 'Login') {
+                router.push({ name: 'Login', query: { redirect: router.currentRoute.value.fullPath } })
+              }
+            })
+            return Promise.reject(error)
+          }
+          userStore.refreshToken = storedRefreshToken
+        }
+        
+        try {
+          // 刷新Token
+          const newToken = await userStore.refreshAccessToken()
+          
+          // 更新请求Header
+          originalRequest.headers.Authorization = `Bearer ${newToken}`
+          
+          // 重试原请求
+          return request(originalRequest)
+        } catch (refreshError) {
+          // 刷新失败，跳转到登录页
+          userStore.clearAuth()
+          ElMessage.error('登录已过期，请重新登录')
+          nextTick(() => {
+            if (router.currentRoute.value.name !== 'Login') {
+              router.push({ name: 'Login', query: { redirect: router.currentRoute.value.fullPath } })
+            }
+          })
+          return Promise.reject(refreshError)
+        }
+      } else {
+        // 已经重试过，仍然 401，或者 originalRequest 不存在，说明 token 无效，跳转登录
+        userStore.clearAuth()
+        ElMessage.error('登录已过期，请重新登录')
+        nextTick(() => {
+          if (router.currentRoute.value.name !== 'Login') {
+            router.push({ name: 'Login', query: { redirect: router.currentRoute.value.fullPath } })
+          }
+        })
+        return Promise.reject(error)
       }
     }
     

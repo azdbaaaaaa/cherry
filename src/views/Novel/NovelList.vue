@@ -1,11 +1,11 @@
 <template>
-  <div class="workflow-list">
+  <div class="novel-list">
     <!-- 页面标题和操作 -->
     <div class="page-header">
       <div class="header-content">
         <div class="header-left">
-          <h1 class="page-title">工作流管理</h1>
-          <p class="page-subtitle">管理和监控您的AI视频生成工作流</p>
+          <h1 class="page-title">剧本列表</h1>
+          <p class="page-subtitle">管理和监控您的AI视频生成剧本</p>
         </div>
         <el-button
           type="primary"
@@ -13,7 +13,7 @@
           @click="goToCreate"
         >
           <el-icon><Plus /></el-icon>
-          创建工作流
+          创建新剧本
         </el-button>
       </div>
     </div>
@@ -25,7 +25,7 @@
         <div class="filter-bar">
           <el-input
             v-model="searchQuery"
-            placeholder="搜索工作流名称..."
+            placeholder="搜索剧本名称..."
             clearable
             class="search-input"
           >
@@ -54,84 +54,51 @@
         </div>
 
         <el-empty
-          v-else-if="filteredWorkflows.length === 0"
-          description="暂无工作流"
+          v-else-if="filteredNovels.length === 0"
+          description="暂无剧本"
           :image-size="200"
         >
-          <el-button type="primary" @click="goToCreate">创建工作流</el-button>
+          <el-button type="primary" @click="goToCreate">创建新剧本</el-button>
         </el-empty>
 
-        <div v-else class="workflows-grid">
+        <div v-else class="novels-grid">
           <div
-            v-for="workflow in filteredWorkflows"
-            :key="workflow.id"
-            class="workflow-card fade-in"
-            @click="goToDetail(workflow.id)"
+            v-for="novel in filteredNovels"
+            :key="novel.id"
+            class="novel-card fade-in"
+            @click="goToDetail(novel.id)"
           >
             <!-- 卡片头部 -->
             <div class="card-header">
               <div class="card-title-section">
-                <h3 class="card-title">{{ workflow.name }}</h3>
+                <h3 class="card-title">{{ novel.title || novel.id }}</h3>
                 <el-tag
-                  :type="getStatusType(workflow.status)"
+                  type="info"
                   size="large"
                   effect="dark"
                   class="status-tag"
                 >
-                  {{ getStatusText(workflow.status) }}
+                  剧本
                 </el-tag>
               </div>
               <el-icon class="card-arrow"><ArrowRight /></el-icon>
-            </div>
-
-            <!-- 进度条 -->
-            <div class="progress-section">
-              <div class="progress-info">
-                <span class="progress-label">完成进度</span>
-                <span class="progress-value">{{ Math.round(workflow.progress * 100) }}%</span>
-              </div>
-              <el-progress
-                :percentage="workflow.progress * 100"
-                :color="getProgressColor(workflow.progress)"
-                :stroke-width="8"
-                :show-text="false"
-              />
             </div>
 
             <!-- 详细信息 -->
             <div class="card-info">
               <div class="info-item">
                 <el-icon><Clock /></el-icon>
-                <span>{{ formatTime(workflow.created_at) }}</span>
+                <span>{{ formatTime(novel.created_at) }}</span>
               </div>
               <div class="info-item">
                 <el-icon><Document /></el-icon>
-                <span>{{ getStageText(workflow.current_stage) }}</span>
+                <span>{{ novel.author || '未知作者' }}</span>
               </div>
-            </div>
-
-            <!-- 操作按钮 -->
-            <div class="card-actions" @click.stop>
-              <el-button
-                v-if="workflow.status === 'running'"
-                size="small"
-                @click.stop="handlePause(workflow.id)"
-              >
-                暂停
-              </el-button>
-              <el-button
-                v-if="workflow.status === 'paused'"
-                size="small"
-                type="primary"
-                @click.stop="handleResume(workflow.id)"
-              >
-                继续
-              </el-button>
             </div>
           </div>
         </div>
       </div>
-    </main>
+    </div>
   </div>
 </template>
 
@@ -147,38 +114,39 @@ import {
   Document
 } from '@element-plus/icons-vue'
 import { ElMessage } from 'element-plus'
-import { workflowApi } from '@/api/workflow'
-import type { Workflow } from '@/types/workflow'
+import { novelApi } from '@/api/novel'
+import type { Novel } from '@/types/novel'
 
 const router = useRouter()
 const loading = ref(false)
-const workflows = ref<Workflow[]>([])
+const novels = ref<Novel[]>([])
 const searchQuery = ref('')
 const statusFilter = ref('')
 
-const filteredWorkflows = computed(() => {
-  let result = workflows.value
+const filteredNovels = computed(() => {
+  let result = novels.value
 
   if (searchQuery.value) {
-    result = result.filter((w) =>
-      w.name.toLowerCase().includes(searchQuery.value.toLowerCase())
+    result = result.filter((n) =>
+      (n.title || n.id).toLowerCase().includes(searchQuery.value.toLowerCase())
     )
   }
 
-  if (statusFilter.value) {
-    result = result.filter((w) => w.status === statusFilter.value)
-  }
+  // 状态筛选暂时不实现，因为 Novel 类型中没有 status 字段
+  // if (statusFilter.value) {
+  //   result = result.filter((n) => n.status === statusFilter.value)
+  // }
 
   return result
 })
 
-const fetchWorkflows = async () => {
+const fetchNovels = async () => {
   loading.value = true
   try {
-    const res = await workflowApi.list({ page: 1, page_size: 100 })
-    workflows.value = res.data.workflows
+    const res = await novelApi.list({ page: 1, page_size: 100 })
+    novels.value = res.data.novels
   } catch (error) {
-    ElMessage.error('获取工作流列表失败')
+    ElMessage.error('获取剧本列表失败')
     console.error(error)
   } finally {
     loading.value = false
@@ -240,40 +208,20 @@ const formatTime = (time: string) => {
 }
 
 const goToCreate = () => {
-  router.push('/workflow/create')
+  router.push('/novel/create')
 }
 
 const goToDetail = (id: string) => {
-  router.push(`/workflow/${id}`)
-}
-
-const handlePause = async (id: string) => {
-  try {
-    await workflowApi.pause(id)
-    ElMessage.success('工作流已暂停')
-    fetchWorkflows()
-  } catch (error) {
-    ElMessage.error('暂停失败')
-  }
-}
-
-const handleResume = async (id: string) => {
-  try {
-    await workflowApi.resume(id)
-    ElMessage.success('工作流已继续')
-    fetchWorkflows()
-  } catch (error) {
-    ElMessage.error('继续失败')
-  }
+  router.push(`/novel/${id}`)
 }
 
 onMounted(() => {
-  fetchWorkflows()
+  fetchNovels()
 })
 </script>
 
 <style scoped>
-.workflow-list {
+.novel-list {
   width: 100%;
   min-height: 100vh;
   background: var(--bg-secondary);
@@ -357,14 +305,14 @@ onMounted(() => {
 }
 
 /* 工作流网格 */
-.workflows-grid {
+.novels-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
   gap: var(--spacing-xl);
 }
 
 /* 工作流卡片 - 创作平台风格：稳定、专业 */
-.workflow-card {
+.novel-card {
   padding: var(--spacing-xl);
   border-radius: var(--border-radius-lg);
   cursor: pointer;
@@ -376,7 +324,7 @@ onMounted(() => {
   /* 使用纯色背景，更专业 */
 }
 
-.workflow-card::before {
+.novel-card::before {
   content: '';
   position: absolute;
   top: 0;
@@ -389,13 +337,13 @@ onMounted(() => {
   /* 移除 transform，使用 opacity */
 }
 
-.workflow-card:hover {
+.novel-card:hover {
   border-color: var(--primary-color);
   box-shadow: var(--shadow-md);
   /* 移除 transform，保持位置稳定 */
 }
 
-.workflow-card:hover::before {
+.novel-card:hover::before {
   opacity: 1;
   /* 只改变透明度，不改变位置 */
 }
@@ -430,7 +378,7 @@ onMounted(() => {
   /* 移除 transform，保持位置稳定 */
 }
 
-.workflow-card:hover .card-arrow {
+.novel-card:hover .card-arrow {
   color: var(--primary-color);
   /* 只改变颜色，不改变位置 */
 }
@@ -496,7 +444,7 @@ onMounted(() => {
     width: 100%;
   }
 
-  .workflows-grid {
+  .novels-grid {
     grid-template-columns: 1fr;
   }
 

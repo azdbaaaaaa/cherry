@@ -8,7 +8,7 @@
           <el-button
             v-if="novel"
             type="primary"
-            @click="goToUpload"
+            @click="goToCreate"
           >
             <el-icon><Plus /></el-icon>
             上传新小说
@@ -103,7 +103,7 @@
           >
             <el-button
               type="primary"
-              @click="goToUpload"
+              @click="goToCreate"
             >
               前往上传页面
             </el-button>
@@ -264,8 +264,8 @@ const handleChapterClick = (row: Chapter) => {
 }
 
 // 前往上传页面
-const goToUpload = () => {
-  router.push('/novel/upload')
+const goToCreate = () => {
+  router.push('/novel/create')
 }
 
 // 返回

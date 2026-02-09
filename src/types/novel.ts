@@ -2,12 +2,19 @@
 
 export interface Novel {
   id: string
-  workflow_id: string
+  workflow_id?: string // 已废弃，保留用于向后兼容
   user_id: string
   resource_id: string
   title?: string
   author?: string
   description?: string
+  narration_type: 'narration' | 'dialogue' // 旁白类型：narration（旁白/解说）或 dialogue（真人对话）
+  style: 'anime' | 'live' | 'mixed' // 风格：anime（漫剧）、live（真人剧）、mixed（混合）
+  episode_count: number // 集数（章节数量）
+  episode_duration: 'auto' | '3-5min' | '5-10min' | '10-20min' | '20-30min' // 每集时长：auto（自动）、3-5min、5-10min、10-20min、20-30min
+  generation_status?: '' | 'pending' | 'processing' | 'completed' | 'failed' // 内容生成状态
+  generation_progress?: number // 生成进度：0-100
+  generation_message?: string // 当前步骤说明
   created_at: string
   updated_at: string
   deleted_at?: string
@@ -22,9 +29,8 @@ export interface Chapter {
   title: string
   chapter_text: string
   narration_text?: string
-  total_chars: number
   word_count: number
-  line_count: number
+  active_scene_version?: number // 当前生效的场景版本号
   created_at: string
   updated_at: string
   deleted_at?: string
@@ -33,7 +39,9 @@ export interface Chapter {
 export interface CreateNovelRequest {
   resource_id: string
   user_id: string
-  workflow_id: string
+  narration_type: 'narration' | 'dialogue' // 旁白类型：narration（旁白/解说）或 dialogue（真人对话）
+  style: 'anime' | 'live' | 'mixed' // 风格：anime（漫剧）、live（真人剧）、mixed（混合）
+  // 注意：格式和每集时长在切分章节时自动确定
 }
 
 export interface CreateNovelResponse {
@@ -108,14 +116,12 @@ export interface ManualNarrationResponse {
 
 export interface SceneInfo {
   id: string
-  narration_id: string
   chapter_id: string
   user_id: string
-  scene_number: string
-  narration?: string
-  sequence: number
-  version: number
-  status: string
+  description: string // 场景描述
+  sequence: number // 序号
+  version: number // 版本号
+  status: string // 状态
   created_at: string
   updated_at: string
 }
@@ -123,33 +129,26 @@ export interface SceneInfo {
 export interface ShotInfo {
   id: string
   scene_id: string
-  scene_number: string
-  narration_id: string
   chapter_id: string
   user_id: string
-  shot_number: string
-  character?: string
-  image?: string
-  narration: string
-  sound_effect?: string
-  duration?: number
-  image_prompt: string
-  video_prompt?: string
-  camera_movement?: string
-  sequence: number
-  index: number
-  version: number
+  narration: string // 旁白（镜头解说内容）
+  duration?: number // 时长（秒）
+  first_image_prompt: string // 首图提示词（第一帧图片）
+  last_image_prompt: string // 末图提示词（最后一帧图片）
+  video_prompt: string // 视频提示词（动态视频）
+  sequence: number // 序号（在场景中的顺序）
+  version: number // 版本号
   status: string
-  error_message?: string
+  error_message?: string // 错误信息（失败时）
   created_at: string
   updated_at: string
 }
 
 export interface UpdateShotRequest {
   narration?: string
-  image_prompt?: string
+  first_image_prompt?: string
+  last_image_prompt?: string
   video_prompt?: string
-  camera_movement?: string
   duration?: number
 }
 
@@ -163,7 +162,7 @@ export interface Character {
   role_number?: string
   description: string
   image_prompt: string
-  image_resource_id?: string
+  image_url?: string
   status: string
   created_at: string
   updated_at: string
@@ -176,38 +175,21 @@ export interface Prop {
   name: string
   description: string
   image_prompt: string
-  image_resource_id?: string
+  image_url?: string
   category?: string
   status: string
   created_at: string
   updated_at: string
 }
 
-export interface SceneInfo {
-  id: string
-  narration_id: string
-  chapter_id: string
-  user_id: string
-  scene_number: string
-  description: string
-  image_prompt: string
-  image_resource_id?: string
-  narration?: string
-  sequence: number
-  version: number
-  status: string
-  created_at: string
-  updated_at: string
-}
-
 export interface GetScenesResponse {
-  narration_id: string
+  chapter_id: string
   scenes: SceneInfo[]
   count: number
 }
 
 export interface GetShotsResponse {
-  narration_id: string
+  chapter_id: string
   shots: ShotInfo[]
   count: number
 }
@@ -215,16 +197,19 @@ export interface GetShotsResponse {
 // 音频相关类型
 export interface Audio {
   id: string
-  narration_id: string
+  narration_id?: string
   chapter_id: string
+  shot_id?: string
   user_id: string
-  sequence: number
+  sequence?: number
   audio_resource_id: string
+  audio_url?: string // 音频直接访问URL
   duration: number
   text: string
-  prompt: string
+  prompt?: string
   version: number
   status: 'pending' | 'completed' | 'failed'
+  error_message?: string
   created_at: string
   updated_at: string
 }
@@ -321,11 +306,13 @@ export interface Video {
   id: string
   chapter_id: string
   narration_id?: string
+  shot_id?: string
   user_id: string
-  sequence: number
+  sequence?: number
   video_resource_id: string
+  video_url?: string // 视频直接访问URL
   duration: number
-  video_type: 'narration_video' | 'final_video'
+  video_type: 'narration_video' | 'final_video' | 'shot'
   prompt?: string
   version: number
   status: 'pending' | 'processing' | 'completed' | 'failed'

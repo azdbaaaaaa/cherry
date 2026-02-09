@@ -140,8 +140,8 @@ const shots = ref<ShotInfo[]>([])
 
 const narrationId = computed(() => {
   const id = (route.params.narrationId || route.query.narrationId) as string
-  if (!id && route.query.workflowId) {
-    // 如果有 workflowId，提示用户需要 narrationId
+  if (!id && route.query.novelId) {
+    // 如果有 novelId，提示用户需要 narrationId
     ElMessage.warning('请提供 narrationId 参数。可以通过工作流ID查询获取。')
   }
   return id

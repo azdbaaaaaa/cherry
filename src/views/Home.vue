@@ -8,16 +8,16 @@
           <h1 class="hero-title">
             <span class="gradient-text">Cherry</span>
             <br />
-            AI视频生成工作流
+            AI视频生成平台
           </h1>
           <p class="hero-subtitle">
-            从创意到视频，一键生成。基于AI的智能工作流系统，让视频创作变得简单高效。
+            从小说到视频，一键生成。基于AI的智能创作系统，让视频创作变得简单高效。
           </p>
           <div class="hero-actions">
             <el-button
               type="primary"
               size="large"
-              @click="goToWorkflowList"
+              @click="goToCreateWorkflow"
               class="hero-button"
             >
               <el-icon><VideoPlay /></el-icon>
@@ -25,11 +25,11 @@
             </el-button>
             <el-button
               size="large"
-              @click="goToWorkflowList"
+              @click="goToNovelList"
               class="hero-button-secondary"
             >
               <el-icon><Document /></el-icon>
-              查看工作流
+              我的剧本
             </el-button>
           </div>
         </div>
@@ -108,20 +108,24 @@ const features = [
   },
   {
     icon: Setting,
-    title: '工作流管理',
-    description: '可视化工作流管理，实时查看进度，支持暂停、恢复、重试'
+    title: '剧本管理',
+    description: '可视化剧本管理，实时查看进度，支持暂停、恢复、重试'
   }
 ]
 
 const stats = [
-  { value: '100+', label: '工作流模板' },
+  { value: '100+', label: '剧本项目' },
   { value: '10+', label: 'AI服务集成' },
   { value: '99.9%', label: '系统可用性' },
   { value: '24/7', label: '技术支持' }
 ]
 
-const goToWorkflowList = () => {
-  router.push('/workflow')
+const goToNovelList = () => {
+  router.push('/novel')
+}
+
+const goToCreateWorkflow = () => {
+  router.push('/novel/create')
 }
 </script>
 

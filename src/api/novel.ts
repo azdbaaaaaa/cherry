@@ -4,8 +4,6 @@ import type {
   Chapter,
   CreateNovelRequest,
   CreateNovelResponse,
-  SplitChaptersRequest,
-  SplitChaptersResponse,
   GetChaptersResponse,
   Narration,
   GenerateNarrationResponse,
@@ -33,6 +31,20 @@ import type {
 
 export const novelApi = {
   /**
+   * 获取剧本列表
+   * @param params 查询参数
+   * @returns Promise<{ novels: Novel[], total: number, page: number, page_size: number }>
+   */
+  list(params?: { page?: number; page_size?: number }) {
+    return request.get<{
+      novels: Novel[]
+      total: number
+      page: number
+      page_size: number
+    }>('/api/v1/novels', { params })
+  },
+
+  /**
    * 创建小说
    * @param data 创建小说请求数据
    * @returns Promise<CreateNovelResponse>
@@ -47,24 +59,49 @@ export const novelApi = {
    * @returns Promise<Novel>
    */
   getNovel(novelId: string) {
-    return request.get<{ novel: Novel }>(`/api/v1/novels/${novelId}`)
+    return request.get<{ novel: Novel }>('/api/v1/novels/detail', {
+      params: { novel_id: novelId }
+    })
   },
 
   /**
-   * 切分章节
+   * 一键生成内容（异步，立即返回）
    * @param novelId 小说ID
    * @param targetChapters 目标章节数
-   * @returns Promise<SplitChaptersResponse>
+   * @returns Promise<{ code: number; message: string; data: { novel_id: string; target_chapters: number; message: string } }>
    */
-  splitChapters(novelId: string, targetChapters: number) {
-    const data: SplitChaptersRequest = {
+  generateContent(novelId: string, targetChapters: number) {
+    return request.post<{
+      code: number
+      message: string
+      data: {
+        novel_id: string
+        target_chapters: number
+        message: string
+      }
+    }>('/api/v1/novels/generate-content', {
       novel_id: novelId,
       target_chapters: targetChapters
-    }
-    return request.post<SplitChaptersResponse>(
-      `/api/v1/novels/${novelId}/chapters/split`,
-      data
-    )
+    })
+  },
+
+  /**
+   * 获取生成状态
+   * @param novelId 小说ID
+   * @returns Promise<{ code: number; message: string; data: { status: string; progress: number; message: string } }>
+   */
+  getGenerationStatus(novelId: string) {
+    return request.get<{
+      code: number
+      message: string
+      data: {
+        status: string
+        progress: number
+        message: string
+      }
+    }>('/api/v1/novels/generation-status', {
+      params: { novel_id: novelId }
+    })
   },
 
   /**
@@ -73,15 +110,38 @@ export const novelApi = {
    * @returns Promise<GetChaptersResponse>
    */
   getChapters(novelId: string) {
-    return request.get<GetChaptersResponse>(`/api/v1/novels/${novelId}/chapters`)
+    return request.get<GetChaptersResponse>('/api/v1/chapters', {
+      params: { novel_id: novelId }
+    })
   },
 
-  // ========== 解说相关 ==========
+  // ========== 场景和镜头相关 ==========
 
   /**
-   * 为章节生成解说
+   * 为章节生成场景和镜头
+   * @param chapterId 章节ID
+   * @returns Promise<{ code: number; message: string; data: { chapter_id: string; message: string } }>
+   */
+  generateScenes(chapterId: string) {
+    return request.post<{
+      code: number
+      message: string
+      data: {
+        chapter_id: string
+        message: string
+      }
+    }>('/api/v1/scenes/generate', {
+      chapter_id: chapterId
+    })
+  },
+
+  // ========== 解说相关（已废弃） ==========
+
+  /**
+   * 为章节生成解说（已废弃，请使用 generateScenes）
    * @param chapterId 章节ID
    * @returns Promise<GenerateNarrationResponse>
+   * @deprecated 请使用 generateScenes
    */
   generateNarration(chapterId: string) {
     return request.post<GenerateNarrationResponse>(
@@ -107,17 +167,42 @@ export const novelApi = {
   },
 
   /**
-   * 获取解说的场景列表
+   * 获取场景列表（根据章节ID和版本号）
    */
-  getScenes(narrationId: string) {
-    return request.get<GetScenesResponse>(`/api/v1/narrations/${narrationId}/scenes`)
+  getScenes(chapterId: string, version?: number) {
+    return request.get<GetScenesResponse>('/api/v1/scenes', {
+      params: { chapter_id: chapterId, ...(version ? { version } : {}) }
+    })
   },
 
   /**
-   * 获取解说的镜头列表
+   * 获取镜头列表（根据章节ID和版本号）
    */
-  getShots(narrationId: string) {
-    return request.get<GetShotsResponse>(`/api/v1/narrations/${narrationId}/shots`)
+  getShots(chapterId: string, version?: number) {
+    return request.get<GetShotsResponse>('/api/v1/shots', {
+      params: { chapter_id: chapterId, ...(version ? { version } : {}) }
+    })
+  },
+
+  /**
+   * 设置章节的生效场景版本号
+   * @param chapterId 章节ID
+   * @param version 版本号
+   * @returns Promise<{ code: number; message: string; data: { chapter_id: string; version: number; message: string } }>
+   */
+  setActiveSceneVersion(chapterId: string, version: number) {
+    return request.put<{
+      code: number
+      message: string
+      data: {
+        chapter_id: string
+        version: number
+        message: string
+      }
+    }>('/api/v1/scenes/version', {
+      chapter_id: chapterId,
+      version: version
+    })
   },
 
   /**
@@ -320,12 +405,36 @@ export const novelApi = {
   // ========== 图片生成（角色、场景、道具）==========
 
   /**
-   * 生成角色图片
+   * 生成角色图片（异步）
    */
   generateCharacterImages(novelId: string) {
-    return request.post<{ novel_id: string; image_ids: string[]; count: number }>(
-      `/api/v1/novels/${novelId}/characters/images`
+    return request.post<{ novel_id: string; message: string }>(
+      '/api/v1/characters/images',
+      { novel_id: novelId }
     )
+  },
+
+  /**
+   * 获取角色图片生成状态
+   */
+  getCharacterImageGenerationStatus(novelId: string) {
+    return request.get<{
+      novel_id: string
+      statuses: Array<{
+        character_id: string
+        character_name: string
+        status: string
+        error_message?: string
+      }>
+      summary: {
+        total: number
+        pending: number
+        completed: number
+        failed: number
+      }
+    }>('/api/v1/characters/images/status', {
+      params: { novel_id: novelId }
+    })
   },
 
   /**
@@ -338,12 +447,36 @@ export const novelApi = {
   },
 
   /**
-   * 生成道具图片
+   * 生成道具图片（异步）
    */
   generatePropImages(novelId: string) {
-    return request.post<{ novel_id: string; image_ids: string[]; count: number }>(
-      `/api/v1/novels/${novelId}/props/images`
+    return request.post<{ novel_id: string; message: string }>(
+      '/api/v1/props/images',
+      { novel_id: novelId }
     )
+  },
+
+  /**
+   * 获取道具图片生成状态
+   */
+  getPropImageGenerationStatus(novelId: string) {
+    return request.get<{
+      novel_id: string
+      statuses: Array<{
+        prop_id: string
+        prop_name: string
+        status: string
+        error_message?: string
+      }>
+      summary: {
+        total: number
+        pending: number
+        completed: number
+        failed: number
+      }
+    }>('/api/v1/props/images/status', {
+      params: { novel_id: novelId }
+    })
   },
 
   /**
@@ -351,7 +484,8 @@ export const novelApi = {
    */
   getCharacters(novelId: string) {
     return request.get<{ characters: import('@/types/novel').Character[] }>(
-      `/api/v1/novels/${novelId}/characters`
+      '/api/v1/characters',
+      { params: { novel_id: novelId } }
     )
   },
 
@@ -360,7 +494,46 @@ export const novelApi = {
    */
   getProps(novelId: string) {
     return request.get<{ props: import('@/types/novel').Prop[] }>(
-      `/api/v1/novels/${novelId}/props`
+      '/api/v1/props',
+      { params: { novel_id: novelId } }
+    )
+  },
+
+  /**
+   * 为章节生成所有 shot 的音频
+   */
+  generateAudiosForChapter(chapterId: string) {
+    return request.post<{ chapter_id: string; message: string }>(
+      `/api/v1/chapters/${chapterId}/audios`
+    )
+  },
+
+  /**
+   * 为章节生成所有 shot 的视频
+   */
+  generateVideosForChapter(chapterId: string) {
+    return request.post<{ chapter_id: string; message: string }>(
+      `/api/v1/chapters/${chapterId}/videos`
+    )
+  },
+
+  /**
+   * 获取章节的音频列表
+   */
+  getAudiosByChapter(chapterId: string, version?: number) {
+    return request.get<{ audios: import('@/types/novel').Audio[]; version: number }>(
+      `/api/v1/chapters/${chapterId}/audios`,
+      { params: version ? { version } : {} }
+    )
+  },
+
+  /**
+   * 获取章节的视频列表
+   */
+  getVideosByChapter(chapterId: string, version?: number) {
+    return request.get<{ videos: import('@/types/novel').Video[]; version: number }>(
+      `/api/v1/chapters/${chapterId}/videos`,
+      { params: version ? { version } : {} }
     )
   }
 }

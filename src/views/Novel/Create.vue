@@ -1,5 +1,5 @@
 <template>
-  <div class="workflow-create">
+  <div class="novel-create">
     <!-- 页面标题 -->
     <div class="page-header">
       <h1 class="page-title">创建剧本</h1>
@@ -12,7 +12,7 @@
           <template #header>
             <div class="card-header">
               <h2 class="card-title">剧本内容与配置</h2>
-              <p class="card-subtitle">上传剧本文件并配置视频生成参数</p>
+              <p class="card-subtitle">上传小说文件或输入文本，系统将自动生成剧本和视频</p>
             </div>
           </template>
 
@@ -21,7 +21,7 @@
             :rules="rules"
             ref="formRef"
             label-position="top"
-            class="workflow-form"
+            class="novel-form"
           >
             <!-- 输入方式 -->
             <el-form-item label="输入方式" prop="input_type">
@@ -93,19 +93,6 @@
               />
             </el-form-item>
 
-            <!-- 剧本名称 -->
-            <el-form-item label="剧本名称" prop="name">
-              <el-input
-                v-model="form.name"
-                placeholder="从文件名自动提取，也可手动修改"
-                size="large"
-                clearable
-              >
-                <template #prefix>
-                  <el-icon><Edit /></el-icon>
-                </template>
-              </el-input>
-            </el-form-item>
 
             <!-- 旁白类型 -->
             <el-form-item label="旁白类型" prop="narration_type">
@@ -151,8 +138,6 @@
               </el-select>
             </el-form-item>
 
-
-
             <!-- 提交按钮 -->
             <el-form-item class="form-actions">
               <el-button
@@ -176,7 +161,7 @@
           </el-form>
         </el-card>
       </div>
-    </main>
+    </div>
   </div>
 </template>
 
@@ -198,10 +183,12 @@ import {
   UserFilled
 } from '@element-plus/icons-vue'
 import { ElMessage, type FormInstance, type FormRules } from 'element-plus'
-import { workflowApi, type CreateWorkflowRequest } from '@/api/workflow'
+import { novelApi, type CreateNovelRequest } from '@/api/novel'
 import { resourceApi } from '@/api/resource'
+import { useUserStore } from '@/stores/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
 const selectedFile = ref<File | null>(null)
@@ -224,16 +211,15 @@ const styles = [
 ]
 
 const form = reactive({
-  name: '',
   input_type: 'file' as 'text' | 'file', // 默认选择文件上传
   text_content: '',
   resource_id: '',
   narration_type: 'narration' as 'narration' | 'dialogue',
   style: 'anime' as 'anime' | 'live' | 'mixed' // 默认选择漫剧
+  // 注意：格式和每集时长在切分章节时自动确定
 })
 
 const rules: FormRules = {
-  name: [{ required: true, message: '请输入工作流名称', trigger: 'blur' }],
   input_type: [{ required: true, message: '请选择输入类型', trigger: 'change' }],
   narration_type: [{ required: true, message: '请选择旁白类型', trigger: 'change' }],
   style: [{ required: true, message: '请选择风格', trigger: 'change' }],
@@ -261,21 +247,8 @@ const getFileTypesText = () => {
   return 'TXT、DOC、DOCX、PDF'
 }
 
-// 从文件名提取剧本名称（去除扩展名）
-const extractNovelName = (fileName: string): string => {
-  // 去除扩展名
-  const nameWithoutExt = fileName.replace(/\.[^/.]+$/, '')
-  // 去除常见的括号内容，如 "大道主(飘荡的云)" -> "大道主"
-  const nameWithoutBrackets = nameWithoutExt.replace(/\([^)]*\)/g, '').trim()
-  return nameWithoutBrackets || nameWithoutExt
-}
-
 const handleFileChange = (file: any) => {
   selectedFile.value = file.raw
-  // 如果名称为空，从文件名提取剧本名称
-  if (!form.name && file.name) {
-    form.name = extractNovelName(file.name)
-  }
   if (formRef.value) {
     formRef.value.validateField('text_content')
   }
@@ -317,26 +290,39 @@ const submit = async () => {
         resourceId = uploadResult.resource_id
       }
 
-      // 构建请求数据
-      const data: CreateWorkflowRequest = {
-        name: form.name,
-        input_type: form.input_type,
+      // 获取当前用户ID（从认证信息中获取）
+      const userID = userStore.user?.id
+      if (!userID) {
+        ElMessage.error('请先登录')
+        submitting.value = false
+        return
+      }
+
+      // 构建请求数据（后端接口要求）
+      // 注意：格式和每集时长在切分章节时自动确定
+      const data: CreateNovelRequest = {
+        resource_id: resourceId,
+        user_id: userID,
         narration_type: form.narration_type,
         style: form.style
       }
 
-      if (form.input_type === 'text') {
-        data.text_content = form.text_content
-      } else if (form.input_type === 'file') {
-        data.resource_id = resourceId
+      const res = await novelApi.createNovel(data)
+      
+      // 后端返回格式: { code: 0, message: "...", data: { novel_id: "..." } }
+      if (!res.data?.novel_id) {
+        ElMessage.error('创建剧本失败：未获取到剧本ID')
+        console.error('API响应数据:', res)
+        return
       }
-
-      const res = await workflowApi.create(data)
-      ElMessage.success('工作流创建成功')
-      router.push(`/workflow/${res.data.workflow_id}`)
+      
+      ElMessage.success('剧本创建成功')
+      // 跳转到剧本详情页
+      router.push(`/novel/${res.data.novel_id}`)
     } catch (error: any) {
-      ElMessage.error(error.response?.data?.message || error.message || '创建工作流失败')
-      console.error(error)
+      console.error('创建剧本失败:', error)
+      const errorMessage = error?.response?.data?.message || error?.message || '创建剧本失败'
+      ElMessage.error(errorMessage)
     } finally {
       submitting.value = false
     }
@@ -349,7 +335,7 @@ const goBack = () => {
 </script>
 
 <style scoped>
-.workflow-create {
+.novel-create {
   width: 100%;
   min-height: 100vh;
   background: var(--bg-secondary);
@@ -433,7 +419,7 @@ const goBack = () => {
 }
 
 /* 表单 - 创作平台风格 */
-.workflow-form {
+.novel-form {
   padding: var(--spacing-xl) 0;
 }
 

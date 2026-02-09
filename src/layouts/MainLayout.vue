@@ -23,33 +23,14 @@
           <template #title>首页</template>
         </el-menu-item>
 
-        <el-sub-menu index="workflow">
-          <template #title>
-            <el-icon><VideoPlay /></el-icon>
-            <span>工作流管理</span>
-          </template>
-          <el-menu-item index="/workflow">
-            <el-icon><List /></el-icon>
-            <template #title>工作流列表</template>
-          </el-menu-item>
-          <el-menu-item index="/workflow/create">
-            <el-icon><Plus /></el-icon>
-            <template #title>创建工作流</template>
-          </el-menu-item>
-        </el-sub-menu>
-
         <el-sub-menu index="novel">
           <template #title>
-            <el-icon><Document /></el-icon>
-            <span>小说管理</span>
+            <el-icon><VideoPlay /></el-icon>
+            <span>剧本管理</span>
           </template>
           <el-menu-item index="/novel">
             <el-icon><List /></el-icon>
-            <template #title>小说列表</template>
-          </el-menu-item>
-          <el-menu-item index="/novel/upload">
-            <el-icon><Upload /></el-icon>
-            <template #title>上传小说</template>
+            <template #title>剧本列表</template>
           </el-menu-item>
         </el-sub-menu>
       </el-menu>

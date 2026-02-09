@@ -278,7 +278,7 @@
           </div>
         </el-card>
       </div>
-    </main>
+    </div>
   </div>
 </template>
 
@@ -297,10 +297,10 @@ import {
 import { ElMessage, ElMessageBox, type FormInstance, type FormRules } from 'element-plus'
 import { resourceApi, type UploadProgressEvent } from '@/api/resource'
 import { novelApi } from '@/api/novel'
+import request from '@/api/client'
 import type {
   UploadFileResponse,
   CreateNovelResponse,
-  SplitChaptersResponse,
   Chapter,
   Novel
 } from '@/types/novel'
@@ -344,7 +344,11 @@ const splitRules: FormRules = {
   ]
 }
 const splitting = ref(false)
-const chaptersResult = ref<SplitChaptersResponse | null>(null)
+const chaptersResult = ref<{
+  novel_id: string
+  target_chapters: number
+  message: string
+} | null>(null)
 const loadingChapters = ref(false)
 const chapters = ref<Chapter[]>([])
 
@@ -540,12 +544,20 @@ const handleSplitChapters = async () => {
     splitting.value = true
 
     try {
-      const result = await novelApi.splitChapters(
-        novelResult.value.novel_id,
-        splitForm.target_chapters
-      )
+      const result = await request.post<{
+        code: number
+        message: string
+        data: {
+          novel_id: string
+          target_chapters: number
+          message: string
+        }
+      }>('/api/v1/chapters/split', {
+        novel_id: novelResult.value.novel_id,
+        target_chapters: splitForm.target_chapters
+      })
 
-      chaptersResult.value = result
+      chaptersResult.value = result.data
       ElMessage.success('章节切分成功')
       saveState()
 
@@ -677,6 +689,7 @@ const goToPreviousStep = () => {
 /* 主要内容 */
 .page-content {
   /* 内容区域样式已由布局组件处理 */
+  width: 100%;
 }
 
 .upload-container {

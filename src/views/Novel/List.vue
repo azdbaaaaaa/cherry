@@ -4,16 +4,16 @@
     <div class="page-header">
       <div class="header-content">
         <div class="header-left">
-          <h1 class="page-title">小说管理</h1>
-          <p class="page-subtitle">管理和查看您的小说作品</p>
+          <h1 class="page-title">剧本管理</h1>
+          <p class="page-subtitle">管理和查看您的剧本作品</p>
         </div>
         <el-button
           type="primary"
           size="large"
-          @click="goToUpload"
+          @click="goToCreate"
         >
           <el-icon><Plus /></el-icon>
-          上传新小说
+          创建新剧本
         </el-button>
       </div>
     </div>
@@ -25,7 +25,7 @@
         <div class="filter-bar glass">
           <el-input
             v-model="searchQuery"
-            placeholder="搜索小说名称..."
+            placeholder="搜索剧本名称..."
             clearable
             class="search-input"
           >
@@ -53,10 +53,10 @@
 
         <el-empty
           v-else-if="filteredNovels.length === 0"
-          description="暂无小说"
+          description="暂无剧本"
           :image-size="200"
         >
-          <el-button type="primary" @click="goToUpload">上传新小说</el-button>
+          <el-button type="primary" @click="goToUpload">创建新剧本</el-button>
         </el-empty>
 
         <div v-else class="novels-grid">
@@ -69,7 +69,7 @@
             <!-- 卡片头部 -->
             <div class="card-header">
               <div class="card-title-section">
-                <h3 class="card-title">{{ novel.title || '未命名小说' }}</h3>
+                <h3 class="card-title">{{ novel.title || '未命名剧本' }}</h3>
                 <el-tag
                   :type="getStatusType(novel)"
                   size="large"
@@ -137,44 +137,20 @@ const novels = ref<Novel[]>([])
 const searchQuery = ref('')
 const statusFilter = ref('')
 
-// 从本地存储获取小说列表（临时方案，等后端接口）
-const loadNovelsFromStorage = () => {
-  try {
-    const saved = localStorage.getItem('novels_list')
-    if (saved) {
-      novels.value = JSON.parse(saved)
-    }
-  } catch (error) {
-    console.error('加载小说列表失败:', error)
-  }
-}
 
-// 保存小说列表到本地存储（临时方案）
-const saveNovelsToStorage = () => {
-  try {
-    localStorage.setItem('novels_list', JSON.stringify(novels.value))
-  } catch (error) {
-    console.error('保存小说列表失败:', error)
-  }
-}
-
-// 获取小说列表（TODO: 等后端接口准备好后实现）
+// 获取剧本列表
 const fetchNovels = async () => {
   loading.value = true
   try {
-    // TODO: 调用后端接口获取小说列表
-    // const res = await novelApi.list({ page: 1, page_size: 100 })
-    // novels.value = res.data.novels
-    
-    // 临时方案：从本地存储加载
-    loadNovelsFromStorage()
+    const res = await novelApi.list({ page: 1, page_size: 100 })
+    novels.value = res.data.novels
     
     // 如果没有数据，显示提示
     if (novels.value.length === 0) {
-      ElMessage.info('暂无小说数据，请先上传小说')
+      ElMessage.info('暂无剧本数据，请先创建剧本')
     }
   } catch (error) {
-    ElMessage.error('获取小说列表失败')
+    ElMessage.error('获取剧本列表失败')
     console.error(error)
   } finally {
     loading.value = false
@@ -188,7 +164,7 @@ const filteredNovels = computed(() => {
   // 搜索过滤
   if (searchQuery.value) {
     result = result.filter((n) =>
-      (n.title || '未命名小说').toLowerCase().includes(searchQuery.value.toLowerCase())
+      (n.title || '未命名剧本').toLowerCase().includes(searchQuery.value.toLowerCase())
     )
   }
 
@@ -229,9 +205,9 @@ const formatTime = (time: string) => {
   return date.toLocaleDateString('zh-CN')
 }
 
-// 前往上传页面
-const goToUpload = () => {
-  router.push('/novel/upload')
+// 前往创建页面
+const goToCreate = () => {
+  router.push('/novel/create')
 }
 
 // 前往详情页
@@ -239,21 +215,20 @@ const goToDetail = (novelId: string) => {
   router.push(`/novel/${novelId}`)
 }
 
-// 删除小说
+// 删除剧本
 const handleDelete = async (novelId: string) => {
   try {
-    await ElMessageBox.confirm('确定要删除这本小说吗？', '提示', {
+    await ElMessageBox.confirm('确定要删除这个剧本吗？', '提示', {
       confirmButtonText: '确定',
       cancelButtonText: '取消',
       type: 'warning'
     })
 
-    // TODO: 调用后端接口删除小说
+    // TODO: 调用后端接口删除剧本
     // await novelApi.deleteNovel(novelId)
     
-    // 临时方案：从本地存储删除
+    // 临时方案：从列表中删除
     novels.value = novels.value.filter(n => n.id !== novelId)
-    saveNovelsToStorage()
     
     ElMessage.success('删除成功')
   } catch (error) {
@@ -263,14 +238,6 @@ const handleDelete = async (novelId: string) => {
 
 onMounted(() => {
   fetchNovels()
-  
-  // 监听上传页面完成后的消息（如果从上传页面跳转回来）
-  window.addEventListener('storage', (e) => {
-    if (e.key === 'novel_created') {
-      // 重新加载列表
-      fetchNovels()
-    }
-  })
 })
 </script>
 

@@ -65,6 +65,7 @@ export const useUserStore = defineStore('user', {
       if (!this.refreshToken) {
         const stored = localStorage.getItem('refresh_token')
         if (!stored) {
+          this.clearAuth()
           throw new Error('No refresh token')
         }
         this.refreshToken = stored
@@ -73,8 +74,19 @@ export const useUserStore = defineStore('user', {
       try {
         const res = await authApi.refresh({ refresh_token: this.refreshToken })
         this.accessToken = res.data.access_token
+        // 如果响应中包含新的 refresh_token，更新它
+        if (res.data.refresh_token) {
+          this.refreshToken = res.data.refresh_token
+          localStorage.setItem('refresh_token', res.data.refresh_token)
+        }
         return res.data.access_token
-      } catch (error) {
+      } catch (error: any) {
+        // 如果是 401 错误，说明 refresh token 已过期或无效
+        if (error?.response?.status === 401) {
+          this.clearAuth()
+          throw new Error('Refresh token expired or invalid')
+        }
+        // 其他错误也清除认证状态
         this.clearAuth()
         throw error
       }
@@ -82,11 +94,27 @@ export const useUserStore = defineStore('user', {
 
     async fetchUserInfo() {
       try {
+        // 如果 accessToken 不存在，先尝试刷新
+        if (!this.accessToken && this.refreshToken) {
+          try {
+            await this.refreshAccessToken()
+          } catch (refreshError) {
+            // 刷新失败，清除认证状态
+            this.clearAuth()
+            throw refreshError
+          }
+        }
+
         const res = await authApi.getMe()
         this.user = res.data
         this.isAuthenticated = true
         return res.data
-      } catch (error) {
+      } catch (error: any) {
+        // 如果是 401 错误，说明 token 无效
+        if (error?.response?.status === 401) {
+          this.clearAuth()
+          throw new Error('Authentication failed')
+        }
         this.clearAuth()
         throw error
       }
