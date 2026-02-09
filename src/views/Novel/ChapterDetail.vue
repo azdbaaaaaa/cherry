@@ -391,15 +391,17 @@
                 <p v-if="finalVideoStatus === 'none'" class="status-tip">
                   需要先生成所有 narration 视频
                 </p>
-                <div v-if="selectedVideoVersion" class="status-tip">
-                  将合并视频版本：v{{ selectedVideoVersion }}
-                </div>
-                <el-checkbox
-                  v-model="mergeConfirmed"
-                  :disabled="!selectedVideoVersion"
-                >
-                  我已人工确认该版本镜头视频可用于合并
-                </el-checkbox>
+                <template v-if="finalVideoStatus !== 'completed'">
+                  <div v-if="selectedVideoVersion" class="status-tip">
+                    将合并视频版本：v{{ selectedVideoVersion }}
+                  </div>
+                  <el-checkbox
+                    v-model="mergeConfirmed"
+                    :disabled="!selectedVideoVersion"
+                  >
+                    我已人工确认该版本镜头视频可用于合并
+                  </el-checkbox>
+                </template>
                 <div v-else-if="finalVideoStatus === 'completed'">
                   <p><span class="label">视频ID：</span>{{ finalVideoId }}</p>
                 </div>
@@ -887,7 +889,7 @@ const handleGenerateVideos = async () => {
   videoStatus.value = 'processing'
 
   try {
-    const result = await novelApi.generateNarrationVideos(chapter.value.id)
+    const result = await novelApi.generateShotVideos(chapter.value.id)
     ElMessage.success(`视频生成任务已提交，将生成 ${result.count} 个视频`)
     videoCount.value = result.count
     

@@ -275,6 +275,8 @@ export interface Image {
   shot_number: string
   character_name?: string
   image_resource_id: string
+  image_url?: string // 图片的直接访问URL
+  character_image_subtype?: string // 角色图片细分类：front（正视图）、three_view（三视图）、detail（细节图）
   prompt: string
   version: number
   sequence: number
@@ -321,7 +323,7 @@ export interface Video {
   updated_at: string
 }
 
-export interface GenerateNarrationVideosResponse {
+export interface GenerateShotVideosResponse {
   video_ids: string[]
   count: number
   chapter_id: string

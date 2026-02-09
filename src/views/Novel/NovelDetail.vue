@@ -13,42 +13,11 @@
           <span>返回</span>
           </button>
         <h1 class="novel-title">{{ novel?.title || '剧本详情' }}</h1>
-        </div>
-      <div class="header-center">
-        <div class="custom-steps">
-          <div 
-            v-for="(step, index) in steps" 
-            :key="index"
-            class="custom-step"
-            :class="{
-              'is-active': currentStep === index + 1,
-              'is-completed': currentStep > index + 1,
-              'is-pending': currentStep < index + 1
-            }"
-          >
-            <div class="custom-step-indicator">
-              <div class="custom-step-number">{{ index + 1 }}</div>
-            </div>
-            <div class="custom-step-title">{{ step.title }}</div>
-            <div v-if="index < steps.length - 1" class="custom-step-line"></div>
-          </div>
-        </div>
+        <span v-if="selectedChapter" class="chapter-title-header">
+          第 {{ selectedChapter.sequence }} 章：{{ selectedChapter.title || `第 ${selectedChapter.sequence} 章` }}
+        </span>
       </div>
       <div class="header-right">
-          <button
-          v-if="currentStep > 1"
-          @click="goToPrevStep"
-          class="step-button"
-        >
-          上一步
-          </button>
-          <button
-          @click="goToNextStep"
-          :disabled="!canGoToNextStep"
-          class="step-button step-button--primary"
-          >
-          下一步
-          </button>
         <div class="user-avatar">
           <svg class="icon-user" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
@@ -76,61 +45,43 @@
         </div>
         
         <!-- 剧本详情 -->
-        <template v-else-if="novel">
-          <!-- 第一步：内容生成 -->
-          <div v-if="currentStep === 1" class="step-content">
-            <!-- 顶部工具栏：剧本信息 + 章节选择 + 一键生成 -->
+            <div v-else-if="novel">
+          <!-- 场景和镜头内容 -->
+          <div class="step-content">
+            <!-- 顶部工具栏：剧本信息 + 章节信息 -->
             <div class="top-toolbar">
-                  <!-- 左侧：剧本基本信息（紧凑显示） -->
+                  <!-- 左侧：剧本和章节基本信息（紧凑显示） -->
                   <div class="toolbar-left">
                     <div class="novel-basic-info">
                       <span class="novel-name">{{ novel.title || '未命名剧本' }}</span>
                       <span class="novel-meta">
                         <span>{{ getStyleLabel(novel.style) }}</span>
                         <span class="meta-divider">·</span>
-                        <span>{{ chapters.length }} 章</span>
+                        <span v-if="selectedChapter">第 {{ selectedChapter.sequence }} 章：{{ selectedChapter.title || `第 ${selectedChapter.sequence} 章` }}</span>
+                        <span v-else>{{ chapters.length }} 章</span>
                       </span>
               </div>
                 </div>
 
-                  <!-- 中间：章节选择（横向滚动） -->
-                  <div class="toolbar-center">
-                    <div class="chapters-selector">
-                      <div
-                        v-for="chapter in chapters"
-                        :key="chapter.id"
-                        class="chapter-selector-item"
-                        :class="{ 'is-selected': selectedChapter?.id === chapter.id }"
-                        @click="selectChapter(chapter)"
-                      >
-                        <span class="chapter-selector-number">{{ chapter.sequence }}</span>
-                        <span class="chapter-selector-title">{{ chapter.title || `第${chapter.sequence}章` }}</span>
-                </div>
-                      <div v-if="chapters.length === 0" class="chapters-selector-empty">
-                        暂无章节
-                </div>
-                </div>
-                </div>
-
-                  <!-- 右侧：一键生成 -->
+                  <!-- 右侧：切分章节 -->
                   <div class="toolbar-right">
-                    <div v-if="!hasGeneratedContent" class="toolbar-generate">
+                    <div v-if="chapters.length === 0" class="toolbar-generate">
                       <button
-                        @click="startAutoGenerate"
-                        :disabled="autoGenerating"
+                        @click="handleSplitChapters"
+                        :disabled="splittingChapters"
                         class="generate-button generate-button--toolbar"
                       >
-                        <span v-if="autoGenerating" class="button-spinner"></span>
-                        <span>{{ autoGenerating ? '生成中...' : '一键生成' }}</span>
+                        <span v-if="splittingChapters" class="button-spinner"></span>
+                        <span>{{ splittingChapters ? '切分中...' : '切分章节' }}</span>
                       </button>
                       <!-- 进度条和说明 -->
-                      <div v-if="autoGenerating" class="generate-progress generate-progress--toolbar">
+                      <div v-if="splittingChapters" class="generate-progress generate-progress--toolbar">
                         <div class="progress-bar-container">
-                          <div class="progress-bar" :style="{ width: `${autoGenerateProgress.percentage}%` }"></div>
+                          <div class="progress-bar" :style="{ width: `${splitProgress.percentage}%` }"></div>
                         </div>
                         <div class="progress-info">
-                          <span class="progress-text">{{ autoGenerateProgress.percentage }}%</span>
-                          <span class="progress-message">{{ autoGenerateProgress.message || '正在生成...' }}</span>
+                          <span class="progress-text">{{ splitProgress.percentage }}%</span>
+                          <span class="progress-message">{{ splitProgress.message || '正在切分章节...' }}</span>
                         </div>
                       </div>
                     </div>
@@ -250,136 +201,40 @@
                                 <div 
                                   v-for="shot in scene.shots" 
                                   :key="shot.id"
-                                  class="shot-item"
-                                  :class="{ 'is-selected': selectedShots[scene.id] === shot.id }"
+                                  class="shot-item shot-item-clickable"
+                                  @click="goToShotDetail(shot.id)"
                                 >
-                                  <!-- 镜头选择按钮 -->
-                                  <div class="shot-selector">
-                                    <input 
-                                      type="radio" 
-                                      :name="`scene-${scene.id}`"
-                                      :id="`shot-${shot.id}`"
-                                      :value="shot.id"
-                                      :checked="selectedShots[scene.id] === shot.id"
-                                      @change="selectShot(scene.id, shot.id)"
-                                      class="shot-radio"
-                                    />
-                                    <label :for="`shot-${shot.id}`" class="shot-label">
-                                      Shot{{ shot.sequence }}
-                                    </label>
+                                  <!-- 镜头标题 -->
+                                  <div class="shot-header">
+                                    <span class="shot-label">Shot{{ shot.sequence }}</span>
+                                    <svg class="shot-arrow-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                      <path d="M9 18l6-6-6-6"/>
+                                    </svg>
                                   </div>
                                   
                                   <!-- 镜头内容区域 -->
                                   <div class="shot-content">
-                                    <!-- 字幕输入框 -->
-                                    <div class="shot-field">
-                                      <label class="shot-field-label">字幕：</label>
-                                      <div class="shot-input-wrapper">
-                                        <div 
-                                          v-if="!isFieldExpanded(scene.id, shot.id, 'subtitle')"
-                                          class="shot-text-single"
-                                          @click="expandField(scene.id, shot.id, 'subtitle')"
-                                        >
-                                          {{ shotSubtitles[shot.id] || shot.narration || '点击输入字幕内容...' }}
+                                    <div class="shot-info-preview">
+                                      <div class="shot-info-item">
+                                        <span class="shot-info-label">旁白：</span>
+                                        <span class="shot-info-value">{{ shot.narration || '-' }}</span>
                           </div>
-                                        <template v-else>
-                                          <textarea 
-                                            v-model="shotSubtitles[shot.id]"
-                                            class="shot-textarea"
-                                            :placeholder="shot.narration || '输入字幕内容...'"
-                                            maxlength="200"
-                                            rows="2"
-                                            @blur="collapseField(scene.id, shot.id, 'subtitle')"
-                                            @keydown.esc="collapseField(scene.id, shot.id, 'subtitle')"
-                                          ></textarea>
-                                          <div class="shot-input-footer">
-                                            <span class="char-count">{{ (shotSubtitles[shot.id] || shot.narration || '').length }}/200</span>
-                                            <div class="shot-input-actions">
-                                              <button class="shot-action-icon" title="复制" @click.stop="copyText(shotSubtitles[shot.id] || shot.narration || '')">
-                                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                  <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/>
-                                                  <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
-                            </svg>
-                                              </button>
+                                      <div v-if="showImagePrompts && shot.first_image_prompt" class="shot-info-item">
+                                        <span class="shot-info-label">首图提示词：</span>
+                                        <span class="shot-info-value">{{ shot.first_image_prompt }}</span>
                           </div>
+                                      <div v-if="showImagePrompts && shot.last_image_prompt" class="shot-info-item">
+                                        <span class="shot-info-label">尾图提示词：</span>
+                                        <span class="shot-info-value">{{ shot.last_image_prompt }}</span>
                           </div>
-                                        </template>
+                                      <div v-if="showVideoPrompts && shot.video_prompt" class="shot-info-item">
+                                        <span class="shot-info-label">视频提示词：</span>
+                                        <span class="shot-info-value">{{ shot.video_prompt }}</span>
                         </div>
                               </div>
-                                    
-                                    <!-- 首图提示词输入框 -->
-                                    <div v-if="showImagePrompts" class="shot-field">
-                                      <label class="shot-field-label">首图提示词：</label>
-                                      <div class="shot-input-wrapper">
-                                        <div 
-                                          v-if="!isFieldExpanded(scene.id, shot.id, 'first_image_prompt')"
-                                          class="shot-text-single"
-                                          @click="expandField(scene.id, shot.id, 'first_image_prompt')"
-                                        >
-                                          {{ shotFirstImagePrompts[shot.id] || shot.first_image_prompt || '点击输入首图提示词...' }}
-                                  </div>
-                                        <textarea 
-                                          v-else
-                                          v-model="shotFirstImagePrompts[shot.id]"
-                                          class="shot-textarea shot-textarea--description"
-                                          :placeholder="shot.first_image_prompt || '输入首图提示词...'"
-                                          rows="3"
-                                          @blur="collapseField(scene.id, shot.id, 'first_image_prompt')"
-                                          @keydown.esc="collapseField(scene.id, shot.id, 'first_image_prompt')"
-                                        ></textarea>
                                   </div>
                                   </div>
-                                    
-                                    <!-- 末图提示词输入框 -->
-                                    <div v-if="showImagePrompts" class="shot-field">
-                                      <label class="shot-field-label">末图提示词：</label>
-                                      <div class="shot-input-wrapper">
-                                        <div 
-                                          v-if="!isFieldExpanded(scene.id, shot.id, 'last_image_prompt')"
-                                          class="shot-text-single"
-                                          @click="expandField(scene.id, shot.id, 'last_image_prompt')"
-                                        >
-                                          {{ shotLastImagePrompts[shot.id] || shot.last_image_prompt || '点击输入末图提示词...' }}
                                   </div>
-                                        <textarea 
-                                          v-else
-                                          v-model="shotLastImagePrompts[shot.id]"
-                                          class="shot-textarea shot-textarea--description"
-                                          :placeholder="shot.last_image_prompt || '输入末图提示词...'"
-                                          rows="3"
-                                          @blur="collapseField(scene.id, shot.id, 'last_image_prompt')"
-                                          @keydown.esc="collapseField(scene.id, shot.id, 'last_image_prompt')"
-                                        ></textarea>
-                                  </div>
-                                  </div>
-                                    
-                                    <!-- 视频提示词输入框 -->
-                                    <div v-if="showVideoPrompts" class="shot-field">
-                                      <label class="shot-field-label">视频提示词：</label>
-                                      <div class="shot-input-wrapper">
-                                        <div 
-                                          v-if="!isFieldExpanded(scene.id, shot.id, 'video_prompt')"
-                                          class="shot-text-single"
-                                          @click="expandField(scene.id, shot.id, 'video_prompt')"
-                                        >
-                                          {{ shotDescriptions[shot.id] || shot.video_prompt || '点击输入视频提示词...' }}
-                                  </div>
-                                        <textarea 
-                                          v-else
-                                          v-model="shotDescriptions[shot.id]"
-                                          class="shot-textarea shot-textarea--description"
-                                          :placeholder="shot.video_prompt || '输入视频提示词...'"
-                                          rows="3"
-                                          @blur="collapseField(scene.id, shot.id, 'video_prompt')"
-                                          @keydown.esc="collapseField(scene.id, shot.id, 'video_prompt')"
-                                        ></textarea>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                              
-                              <!-- 无镜头提示 -->
                               <div v-else class="no-shots-in-scene">
                                 <p>该场景暂无镜头</p>
                         </div>
@@ -398,405 +253,18 @@
                           </div>
             </div>
           </div>
-          <!-- 第二步：转换（角色和道具） -->
-          <div v-else-if="currentStep === 2" class="step-content">
-            <!-- 顶部工具栏：剧本信息 -->
-            <div class="top-toolbar">
-              <!-- 左侧：剧本基本信息（紧凑显示） -->
-              <div class="toolbar-left">
-                <div class="novel-basic-info">
-                  <span class="novel-name">{{ novel.title || '未命名剧本' }}</span>
-                  <span class="novel-meta">
-                    <span>{{ getStyleLabel(novel.style) }}</span>
-                    <span class="meta-divider">·</span>
-                    <span>{{ chapters.length }} 章</span>
-                  </span>
-                    </div>
-                  </div>
-                </div>
-                
-            <!-- 主要内容区域：标签页 -->
-            <div class="tabs-container">
-              <div class="tabs-header">
-                <div 
-                  v-for="tab in tabs" 
-                  :key="tab.name"
-                  :class="['tab-item', { 'is-active': activeTab === tab.name }]"
-                  @click="activeTab = tab.name"
-                >
-                  {{ tab.label }}
-                </div>
-              </div>
-              
-              <div class="tabs-content">
-                <!-- 第二步：人物 Tab -->
-                <div v-if="currentStep === 2 && activeTab === 'characters'" class="tab-panel">
-                  <div class="panel-header">
-                    <div class="panel-title-group">
-                      <span class="panel-title">人物列表（共 {{ characters.length }} 个角色）</span>
-                    </div>
-                    <button
-                      @click="generateCharacterImages"
-                      :disabled="generatingCharacters"
-                      class="action-button action-button--primary"
-                    >
-                      <span v-if="generatingCharacters" class="button-spinner"></span>
-                      <span>{{ generatingCharacters ? '生成中...' : '人物抽卡' }}</span>
-                    </button>
-                  </div>
-                          
-                  <!-- 人物卡片列表 -->
-                  <div class="characters-list-grid" :class="{ 'is-loading': loadingCharacters }">
-                    <div v-if="loadingCharacters" class="scenes-loading-overlay">
-                      <div class="loading-spinner"></div>
-                    </div>
-                            
-                    <div 
-                      v-for="character in characters" 
-                      :key="character.id || character.name"
-                      class="character-card-wrapper"
-                    >
-                      <!-- 人物完整图片（独立组件） -->
-                      <div class="character-image-container">
-                        <div class="character-image">
-                          <div v-if="character.image_url" class="character-image-wrapper">
-                            <img 
-                              :src="character.image_url" 
-                              alt="人物图片"
-                              @error="handleImageError"
-                            />
-                          </div>
-                          <div v-else class="character-image-placeholder">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-                              <circle cx="12" cy="7" r="4"></circle>
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <!-- 人物信息（独立组件） -->
-                      <div class="character-info-container">
-                        <!-- 人物基本信息 -->
-                        <div class="character-info">
-                          <h3 class="character-name">{{ character.name || '未命名角色' }}</h3>
-                          <div class="character-meta-new">
-                            <span class="character-gender">{{ character.gender || '-' }}</span>
-                            <span class="character-age">{{ character.age_group || '-' }}</span>
-                          </div>
-                        </div>
-                        
-                        <!-- 角色描述 -->
-                        <div v-if="character.description" class="character-description">
-                          <span class="character-label">描述：</span>
-                          <span class="character-text">{{ character.description }}</span>
-                        </div>
-                        
-                        <!-- 图片提示词 -->
-                        <div v-if="character.image_prompt" class="character-prompt">
-                          <span class="character-label">提示词：</span>
-                          <span class="character-text">{{ character.image_prompt }}</span>
-                        </div>
-                      </div>
-                    </div>
-                            
-                    <!-- 空状态 -->
-                    <div v-if="characters.length === 0 && !loadingCharacters" class="characters-empty">
-                        <div class="empty-state-content">
-                          <svg class="empty-icon" viewBox="0 0 64 64" fill="none">
-                            <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="2" stroke-dasharray="4 4"/>
-                            <path d="M32 20v24M20 32h24" stroke="currentColor" stroke-width="2"/>
-                          </svg>
-                          <p class="empty-text">暂无人物数据</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <!-- 第二步：道具 Tab -->
-                <div v-if="currentStep === 2 && activeTab === 'props'" class="tab-panel">
-                  <div class="panel-header">
-                    <div class="panel-title-group">
-                    <span class="panel-title">道具列表（共 {{ props.length }} 个道具）</span>
-                    </div>
-                    <button
-                      @click="generatePropImages"
-                      :disabled="generatingProps"
-                      class="action-button action-button--primary"
-                    >
-                      <span v-if="generatingProps" class="button-spinner"></span>
-                      <span>{{ generatingProps ? '生成中...' : '道具抽卡' }}</span>
-                    </button>
-                  </div>
-                          
-                  <!-- 道具卡片列表 -->
-                  <div class="props-list-grid" :class="{ 'is-loading': loadingProps }">
-                    <div v-if="loadingProps" class="scenes-loading-overlay">
-                      <div class="loading-spinner"></div>
-                    </div>
-                            
-                    <div 
-                      v-for="prop in props" 
-                      :key="prop.id || prop.name"
-                      class="prop-card-wrapper"
-                    >
-                      <!-- 道具完整图片（独立组件） -->
-                      <div class="prop-image-container">
-                        <div class="prop-image">
-                          <div v-if="prop.image_url" class="prop-image-wrapper">
-                            <img 
-                              :src="prop.image_url" 
-                              alt="道具图片"
-                              @error="handleImageError"
-                            />
-                          </div>
-                          <div v-else class="prop-image-placeholder">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
-                              <path d="M9 9h6v6H9z"></path>
-                            </svg>
-                          </div>
-                        </div>
-                      </div>
-                      
-                      <!-- 道具信息（独立组件） -->
-                      <div class="prop-info-container">
-                        <!-- 道具基本信息 -->
-                        <div class="prop-info">
-                          <h3 class="prop-name">{{ prop.name || '未命名道具' }}</h3>
-                          <div class="prop-meta-new">
-                            <span class="prop-category">{{ prop.category || '-' }}</span>
-                          </div>
-                        </div>
-                        
-                        <!-- 道具描述 -->
-                        <div v-if="prop.description" class="prop-description">
-                          <span class="prop-label">描述：</span>
-                          <span class="prop-text">{{ prop.description }}</span>
-                        </div>
-                        
-                        <!-- 图片提示词 -->
-                        <div v-if="prop.image_prompt" class="prop-prompt">
-                          <span class="prop-label">提示词：</span>
-                          <span class="prop-text">{{ prop.image_prompt }}</span>
-                        </div>
-                      </div>
-                    </div>
-                            
-                    <!-- 空状态 -->
-                    <div v-if="props.length === 0 && !loadingProps" class="props-empty">
-                        <div class="empty-state-content">
-                          <svg class="empty-icon" viewBox="0 0 64 64" fill="none">
-                            <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="2" stroke-dasharray="4 4"/>
-                            <path d="M32 20v24M20 32h24" stroke="currentColor" stroke-width="2"/>
-                          </svg>
-                          <p class="empty-text">暂无道具数据</p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
             </div>
-          </div>
 
-          <!-- 第三步：视频生成 -->
-          <div v-else-if="currentStep === 3" class="step-content">
-            <div v-if="!selectedChapter" class="empty-state">
+            <!-- 错误状态 -->
+            <div v-else class="empty-state">
               <div class="empty-state-content">
                 <svg class="empty-icon" viewBox="0 0 64 64" fill="none">
                   <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="2" stroke-dasharray="4 4"/>
                   <path d="M32 20v24M20 32h24" stroke="currentColor" stroke-width="2"/>
                 </svg>
-                <p class="empty-text">请先选择章节</p>
+                <p class="empty-text">剧本不存在或加载失败</p>
               </div>
             </div>
-            
-            <div v-else>
-              <!-- 顶部工具栏 -->
-              <div class="top-toolbar">
-                <div class="toolbar-left">
-                  <h2 class="toolbar-title">视频生成</h2>
-                  <span class="toolbar-subtitle">章节：{{ selectedChapter.title }}</span>
-                </div>
-                <div class="toolbar-right">
-                  <button
-                    @click="generateAudiosForChapter"
-                    :disabled="generatingAudios"
-                    class="action-button action-button--primary"
-                  >
-                    <span v-if="generatingAudios" class="button-spinner"></span>
-                    <span>{{ generatingAudios ? '生成中...' : '生成所有音频' }}</span>
-                  </button>
-                  <button
-                    @click="generateVideosForChapter"
-                    :disabled="generatingVideos"
-                    class="action-button action-button--primary"
-                  >
-                    <span v-if="generatingVideos" class="button-spinner"></span>
-                    <span>{{ generatingVideos ? '生成中...' : '生成所有视频' }}</span>
-                  </button>
-                </div>
-              </div>
-
-              <!-- 场景和镜头列表（显示音频/视频状态） -->
-              <div class="scenes-list" :class="{ 'is-loading': loadingScenes || loadingShots }">
-                <div v-if="loadingScenes || loadingShots" class="scenes-loading-overlay">
-                  <div class="loading-spinner"></div>
-                </div>
-
-                <div v-for="scene in scenes" :key="scene.id" class="scene-card">
-                  <div class="scene-header" @click="toggleScene(scene.id)">
-                    <div class="scene-header-left">
-                      <span class="scene-number">场景 {{ scene.sequence }}</span>
-                      <h3 class="scene-title">{{ scene.title || `场景 ${scene.sequence}` }}</h3>
-                    </div>
-                    <div class="scene-header-right">
-                      <svg 
-                        class="scene-toggle-icon" 
-                        :class="{ 'expanded': expandedScenes.has(scene.id) }"
-                        viewBox="0 0 24 24" 
-                        fill="none" 
-                        stroke="currentColor" 
-                        stroke-width="2"
-                      >
-                        <path d="M6 9l6 6 6-6"/>
-                      </svg>
-                    </div>
-                  </div>
-
-                  <div v-if="expandedScenes.has(scene.id)" class="scene-content">
-                    <div 
-                      v-for="shot in getShotsBySceneId(scene.id)" 
-                      :key="shot.id"
-                      class="shot-card"
-                    >
-                      <div class="shot-header">
-                        <span class="shot-number">镜头 {{ shot.sequence }}</span>
-                        <div class="shot-status-badges">
-                          <span 
-                            class="status-badge"
-                            :class="getAudioStatusClass(shot.id)"
-                          >
-                            {{ getAudioStatusText(shot.id) }}
-                          </span>
-                          <span 
-                            class="status-badge"
-                            :class="getVideoStatusClass(shot.id)"
-                          >
-                            {{ getVideoStatusText(shot.id) }}
-                          </span>
-                        </div>
-                      </div>
-                      
-                      <div class="shot-content">
-                        <div class="shot-narration">
-                          <span class="shot-label">旁白：</span>
-                          <span class="shot-text">{{ shot.narration || '-' }}</span>
-                        </div>
-                        
-                        <!-- 音频区域 -->
-                        <div class="shot-media-section">
-                          <div class="shot-media-header">
-                            <span class="shot-media-title">音频</span>
-                            <button
-                              v-if="!getAudioForShot(shot.id)"
-                              @click="generateAudioForShot(shot.id)"
-                              :disabled="generatingSingleAudio === shot.id"
-                              class="action-button action-button--small"
-                            >
-                              <span v-if="generatingSingleAudio === shot.id" class="button-spinner"></span>
-                              <span>{{ generatingSingleAudio === shot.id ? '生成中...' : '生成音频' }}</span>
-                            </button>
-                          </div>
-                          <div v-if="getAudioForShot(shot.id)" class="shot-media-content">
-                            <audio 
-                              :src="getAudioForShot(shot.id)?.audio_url" 
-                              controls
-                              class="audio-player"
-                            ></audio>
-                            <div class="shot-media-info">
-                              <span>时长：{{ formatDuration(getAudioForShot(shot.id)?.duration || 0) }}</span>
-                              <span v-if="getAudioForShot(shot.id)?.status === 'failed'" class="error-text">
-                                {{ getAudioForShot(shot.id)?.error_message }}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <!-- 视频区域 -->
-                        <div class="shot-media-section">
-                          <div class="shot-media-header">
-                            <span class="shot-media-title">视频</span>
-                            <button
-                              v-if="!getVideoForShot(shot.id)"
-                              @click="generateVideoForShot(shot.id)"
-                              :disabled="generatingSingleVideo === shot.id"
-                              class="action-button action-button--small"
-                            >
-                              <span v-if="generatingSingleVideo === shot.id" class="button-spinner"></span>
-                              <span>{{ generatingSingleVideo === shot.id ? '生成中...' : '生成视频' }}</span>
-                            </button>
-                          </div>
-                          <div v-if="getVideoForShot(shot.id)" class="shot-media-content">
-                            <video 
-                              :src="getVideoForShot(shot.id)?.video_url" 
-                              controls
-                              class="video-player"
-                            ></video>
-                            <div class="shot-media-info">
-                              <span>时长：{{ formatDuration(getVideoForShot(shot.id)?.duration || 0) }}</span>
-                              <span v-if="getVideoForShot(shot.id)?.status === 'failed'" class="error-text">
-                                {{ getVideoForShot(shot.id)?.error_message }}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- 空状态 -->
-                <div v-if="scenes.length === 0 && !loadingScenes" class="scenes-empty">
-                  <div class="empty-state-content">
-                    <svg class="empty-icon" viewBox="0 0 64 64" fill="none">
-                      <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="2" stroke-dasharray="4 4"/>
-                      <path d="M32 20v24M20 32h24" stroke="currentColor" stroke-width="2"/>
-                    </svg>
-                    <p class="empty-text">暂无场景数据，请先完成第一步内容生成</p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <!-- 其他步骤（待实现） -->
-          <div v-else class="step-content">
-            <div class="empty-state">
-              <div class="empty-state-content">
-                <svg class="empty-icon" viewBox="0 0 64 64" fill="none">
-                  <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="2" stroke-dasharray="4 4"/>
-                  <path d="M32 20v24M20 32h24" stroke="currentColor" stroke-width="2"/>
-                </svg>
-                <p class="empty-text">第{{ currentStep }}步功能开发中...</p>
-              </div>
-              <div class="step-actions">
-                <button @click="goToPrevStep" v-if="currentStep > 1" class="action-button">返回上一步</button>
-              </div>
-            </div>
-          </div>
-        </template>
-
-        <!-- 错误状态 -->
-        <div v-else class="empty-state">
-          <div class="empty-state-content">
-            <svg class="empty-icon" viewBox="0 0 64 64" fill="none">
-              <circle cx="32" cy="32" r="24" stroke="currentColor" stroke-width="2" stroke-dasharray="4 4"/>
-              <path d="M32 20v24M20 32h24" stroke="currentColor" stroke-width="2"/>
-            </svg>
-            <p class="empty-text">剧本不存在或加载失败</p>
-          </div>
-        </div>
           </div>
         </div>
       </div>
@@ -867,30 +335,6 @@ const hasGeneratedContent = computed(() => {
   return status !== '' && status !== undefined && status !== null
 })
 
-// Tab 配置 - 根据步骤动态变化
-const tabs = computed(() => {
-  if (currentStep.value === 1) {
-    // 第一步：只显示场景与镜头
-    return [
-      { name: 'scenes', label: '场景与镜头' }
-    ]
-  } else if (currentStep.value === 2) {
-    // 第二步：显示角色和道具
-    return [
-  { name: 'characters', label: '人物' },
-  { name: 'props', label: '道具' }
-]
-  }
-  return []
-})
-
-// 步骤配置
-const steps = [
-  { title: '内容生成' },
-  { title: '转换' },
-  { title: '视频生成' },
-  { title: '合并' }
-]
 
 // 切换场景展开/收起
 const toggleScene = (sceneId: string) => {
@@ -1121,44 +565,27 @@ const generating = ref(false)
 const generatingCharacters = ref(false)
 const generatingProps = ref(false)
 
-// 第三步：视频生成相关
-const loadingAudios = ref(false) // 加载音频中
-const loadingVideos = ref(false) // 加载视频中
-const generatingAudios = ref(false) // 生成音频中
-const generatingVideos = ref(false) // 生成视频中
-const generatingSingleAudio = ref<string | null>(null) // 正在生成单个音频的 shot ID
-const generatingSingleVideo = ref<string | null>(null) // 正在生成单个视频的 shot ID
-
-// 自动生成相关
-const autoGenerating = ref(false)
-const autoGenerateProgress = ref({
-  currentStep: 0,
+// 切分章节相关
+const splittingChapters = ref(false)
+const splitProgress = ref({
   percentage: 0,
   message: ''
 })
 
-// 自动生成步骤定义
-const autoGenerateSteps = [
-  { title: '切分章节', message: '正在切分章节...' },
-  { title: '生成人物', message: '正在生成人物资源...' },
-  { title: '生成道具', message: '正在生成道具资源...' },
-  { title: '生成场景', message: '正在生成场景和镜头...' }
-]
+const novelId = computed(() => route.params.novelId as string)
+const chapterId = computed(() => route.params.chapterId as string)
 
-const novelId = computed(() => route.params.id as string)
-
-// 是否可以进入下一步（第一步至少要有场景数据）
-const canGoToNextStep = computed(() => {
-  if (currentStep.value === 1) {
-    return scenes.value.length > 0
-  }
-  return true
-})
 
 const fetchNovel = async () => {
   if (!novelId.value) {
     ElMessage.error('剧本ID无效')
     router.push('/novel')
+    return
+  }
+
+  if (!chapterId.value) {
+    ElMessage.error('章节ID无效')
+    router.push({ name: 'NovelInfo', params: { id: novelId.value } })
     return
   }
 
@@ -1185,17 +612,21 @@ const fetchNovel = async () => {
 }
 
 const fetchRelatedData = async () => {
-  if (!novel.value) return
+  if (!novel.value || !chapterId.value) return
   try {
-    // 获取章节列表
+    // 获取章节列表（用于显示，但不用于选择）
     const chaptersRes = await novelApi.getChapters(novel.value.id)
     chapters.value = chaptersRes.data.chapters || []
     
-    // 默认选择第一个章节
-    if (chapters.value.length > 0) {
-      selectedChapter.value = chapters.value[0]
+    // 直接使用路由中的 chapterId，查找对应的章节
+    const chapter = chapters.value.find(ch => ch.id === chapterId.value)
+    if (chapter) {
+      selectedChapter.value = chapter
       // 加载第一步的数据
       await loadStep1Data()
+    } else {
+      ElMessage.error('章节不存在')
+      router.push({ name: 'NovelInfo', params: { id: novelId.value } })
     }
   } catch (error) {
     console.error('获取关联数据失败', error)
@@ -1274,7 +705,8 @@ const loadCharacters = async () => {
     const res = await novelApi.getCharacters(novel.value.id)
     // 响应拦截器已经处理了 { code: 0, data: [...] } 格式，返回的是 data 字段
     // 所以 res.data 就是数组或者包含数组的对象
-    characters.value = Array.isArray(res.data) ? res.data : (res.data?.characters || res.data?.data || res.data || [])
+    const data = res.data as any
+    characters.value = Array.isArray(data) ? data : (data?.characters || data?.data || data || [])
   } catch (error: any) {
     console.error('获取人物列表失败:', error)
     ElMessage.error(error?.response?.data?.message || '获取人物列表失败')
@@ -1291,7 +723,8 @@ const loadProps = async () => {
     const res = await novelApi.getProps(novel.value.id)
     // 响应拦截器已经处理了 { code: 0, data: [...] } 格式，返回的是 data 字段
     // 所以 res.data 就是数组或者包含数组的对象
-    props.value = Array.isArray(res.data) ? res.data : (res.data?.props || res.data?.data || res.data || [])
+    const data = res.data as any
+    props.value = Array.isArray(data) ? data : (data?.props || data?.data || data || [])
     console.log('道具列表加载:', props.value.length, '个道具', props.value)
   } catch (error: any) {
     console.error('获取道具列表失败:', error)
@@ -1309,7 +742,8 @@ const loadAudios = async () => {
     const version = selectedChapter.value.active_scene_version || undefined
     const res = await novelApi.getAudiosByChapter(selectedChapter.value.id, version)
     // 响应拦截器已经处理了格式
-    audios.value = Array.isArray(res.data) ? res.data : (res.data?.audios || res.data?.data || res.data || [])
+    const data = res.data as any
+    audios.value = Array.isArray(data) ? data : (data?.audios || data?.data || data || [])
   } catch (error: any) {
     console.error('获取音频列表失败:', error)
     ElMessage.error(error?.response?.data?.message || '获取音频列表失败')
@@ -1326,7 +760,8 @@ const loadVideos = async () => {
     const version = selectedChapter.value.active_scene_version || undefined
     const res = await novelApi.getVideosByChapter(selectedChapter.value.id, version)
     // 响应拦截器已经处理了格式
-    videos.value = Array.isArray(res.data) ? res.data : (res.data?.videos || res.data?.data || res.data || [])
+    const data = res.data as any
+    videos.value = Array.isArray(data) ? data : (data?.videos || data?.data || data || [])
   } catch (error: any) {
     console.error('获取视频列表失败:', error)
     ElMessage.error(error?.response?.data?.message || '获取视频列表失败')
@@ -1381,6 +816,10 @@ const generateNarration = async () => {
     ElMessage.warning('请先选择章节')
     return
   }
+  
+  let pollTimer: ReturnType<typeof setTimeout> | null = null
+  let isPolling = true
+  
   try {
     generating.value = true
     const oldVersion = selectedChapter.value.active_scene_version || 0
@@ -1391,8 +830,6 @@ const generateNarration = async () => {
     let retryCount = 0
     const maxRetries = 30 // 最多重试30次（30秒）
     const retryInterval = 1000 // 每次间隔1秒
-    let pollTimer: NodeJS.Timeout | null = null
-    let isPolling = true
     
     const checkNewVersion = async (): Promise<boolean> => {
       await fetchChapterInfo()
@@ -1504,7 +941,8 @@ const fetchChapterInfo = async () => {
   try {
     const response = await novelApi.getChapters(novel.value.id)
     // 处理不同的响应格式
-    const chapters = response.data?.chapters || response.chapters || []
+    const data = response.data as any
+    const chapters = data?.chapters || data || []
     const chapter = chapters.find((ch: any) => ch.id === selectedChapter.value!.id)
     if (chapter) {
       // 使用 Object.assign 确保响应式更新
@@ -1539,7 +977,8 @@ const generateCharacterImages = async () => {
       retryCount++
       try {
         const response = await novelApi.getCharacterImageGenerationStatus(novel.value!.id)
-        const summary = response.data?.summary || response.summary
+        const data = response.data as any
+        const summary = data?.summary || data
         
         // 如果所有任务都完成了（没有 pending），停止轮询
         if (summary && summary.pending === 0) {
@@ -1597,7 +1036,8 @@ const generatePropImages = async () => {
       retryCount++
       try {
         const response = await novelApi.getPropImageGenerationStatus(novel.value!.id)
-        const summary = response.data?.summary || response.summary
+        const data = response.data as any
+        const summary = data?.summary || data
         
         // 如果所有任务都完成了（没有 pending），停止轮询
         if (summary && summary.pending === 0) {
@@ -1891,211 +1331,72 @@ const startPollingVideos = () => {
   }, 5000) // 每 5 秒轮询一次
 }
 
-// 更新进度
-const updateProgress = (step: number, percentage: number, message: string) => {
-  autoGenerateProgress.value = {
-    currentStep: step,
-    percentage: Math.min(100, Math.max(0, percentage)),
-    message
-  }
-}
-
-// 轮询定时器
-let pollTimer: ReturnType<typeof setInterval> | null = null
-
-// 轮询查询生成状态
-const pollGenerationStatus = async () => {
-  if (!novel.value) return
-
-  try {
-    const response = await novelApi.getGenerationStatus(novel.value.id)
-    const statusData = response.data.data
-
-    // 更新进度
-    updateProgress(0, statusData.progress, statusData.message)
-
-    // 如果完成或失败，停止轮询
-    if (statusData.status === 'completed') {
-      if (pollTimer) {
-        clearInterval(pollTimer)
-        pollTimer = null
-      }
-      autoGenerating.value = false
-      ElMessage.success('内容生成完成！')
-      
-      // 刷新所有数据
-      await Promise.all([
-        fetchRelatedData(),
-        loadCharacters(),
-        loadProps()
-      ])
-      
-      // 如果已有章节，刷新场景和镜头
-      if (chapters.value.length > 0) {
-        selectedChapter.value = chapters.value[0]
-        await Promise.all([loadScenes(), loadShots()])
-      }
-      
-      // 3秒后重置进度
-      setTimeout(() => {
-        autoGenerateProgress.value = {
-          currentStep: 0,
-          percentage: 0,
-          message: ''
-        }
-      }, 3000)
-    } else if (statusData.status === 'failed') {
-      // 立即停止轮询
-      if (pollTimer) {
-        clearInterval(pollTimer)
-        pollTimer = null
-      }
-      autoGenerating.value = false
-      
-      // 显示详细的错误消息
-      const errorMessage = statusData.message || '内容生成失败'
-      console.error('内容生成失败:', errorMessage)
-      ElMessage.error({
-        message: errorMessage,
-        duration: 6000, // 显示6秒，让用户有时间阅读详细错误
-        showClose: true
-      })
-      
-      // 更新进度显示，保留错误消息
-      autoGenerateProgress.value = {
-        currentStep: 0,
-        percentage: statusData.progress,
-        message: errorMessage
-      }
-      
-      // 不再继续轮询
-      return
-    }
-  } catch (error: any) {
-    console.error('查询生成状态失败:', error)
-    // 继续轮询，不中断
-  }
-}
-
-// 一键生成完整流程
-const startAutoGenerate = async () => {
+// 切分章节
+const handleSplitChapters = async () => {
   if (!novel.value) {
     ElMessage.warning('请先加载剧本信息')
     return
   }
 
-  // 如果已经在生成中，不重复启动
-  if (autoGenerating.value) {
-    ElMessage.warning('生成任务正在进行中，请稍候...')
+  // 如果已经在切分中，不重复启动
+  if (splittingChapters.value) {
+    ElMessage.warning('切分任务正在进行中，请稍候...')
     return
   }
 
-  autoGenerating.value = true
-  updateProgress(0, 0, '准备开始生成...')
+  splittingChapters.value = true
+  splitProgress.value = {
+    percentage: 0,
+    message: '准备开始切分章节...'
+  }
 
   try {
-    // 调用后端一键生成接口（异步，立即返回）
-    await novelApi.generateContent(novel.value.id, 50)
+    // 调用后端切分章节接口
+    await novelApi.splitChapters(novel.value.id, 50) // 默认切分为50章
     
-    // 启动轮询，每2秒查询一次状态
-    // 注意：如果已经有定时器，先清除
-    if (pollTimer) {
-      clearInterval(pollTimer)
-      pollTimer = null
+    ElMessage.success('章节切分成功！')
+    
+    // 刷新章节列表
+    await fetchRelatedData()
+    
+    splitProgress.value = {
+      percentage: 100,
+      message: '切分完成'
     }
-    pollTimer = setInterval(() => {
-      pollGenerationStatus()
+    
+    // 2秒后重置进度
+      setTimeout(() => {
+      splitProgress.value = {
+          percentage: 0,
+          message: ''
+        }
     }, 2000)
-    
-    // 立即查询一次状态
-    await pollGenerationStatus()
   } catch (error: any) {
-    console.error('启动生成任务失败:', error)
-    
-    // 清除定时器
-    if (pollTimer) {
-      clearInterval(pollTimer)
-      pollTimer = null
-    }
-    
-    autoGenerating.value = false
+    console.error('切分章节失败:', error)
     ElMessage.error({
-      message: error?.response?.data?.message || '启动生成任务失败',
+      message: error?.response?.data?.message || '切分章节失败',
       duration: 5000,
       showClose: true
     })
-    autoGenerateProgress.value = {
-      currentStep: 0,
+    splitProgress.value = {
       percentage: 0,
-      message: error?.response?.data?.message || '启动失败'
+      message: error?.response?.data?.message || '切分失败'
     }
+  } finally {
+    splittingChapters.value = false
   }
 }
 
-// 步骤导航
-const goToNextStep = () => {
-  if (currentStep.value < 4) {
-    currentStep.value++
-    // 切换步骤时，自动选择第一个 tab
-    if (tabs.value.length > 0) {
-      activeTab.value = tabs.value[0].name
-    }
-  }
+// 跳转到镜头详情页
+const goToShotDetail = (shotId: string) => {
+  router.push({ name: 'ShotDetail', params: { shotId } })
 }
 
-const goToPrevStep = () => {
-  if (currentStep.value > 1) {
-    currentStep.value--
-    // 切换步骤时，自动选择第一个 tab
-    if (tabs.value.length > 0) {
-      activeTab.value = tabs.value[0].name
-    }
-  }
-}
-
-// 监听步骤切换，加载对应数据
-watch(currentStep, () => {
-  if (currentStep.value === 1) {
-    // 第一步：加载场景和镜头数据
+// 监听章节切换，加载场景和镜头数据
+watch(selectedChapter, () => {
     if (selectedChapter.value) {
       loadScenes()
       loadShots()
-    }
-  } else if (currentStep.value === 2) {
-    // 第二步：加载角色和道具数据
-    loadCharacters()
-    loadProps()
-  } else if (currentStep.value === 3) {
-    // 第三步：加载场景、镜头、音频和视频数据
-    if (selectedChapter.value) {
-      loadScenes()
-      loadShots()
-      loadAudios()
-      loadVideos()
-    }
-  }
-})
-
-// 监听 tab 切换，加载对应数据
-watch(activeTab, () => {
-  if (currentStep.value === 1) {
-    // 第一步：场景和镜头数据已在步骤切换时加载
-    if (selectedChapter.value) {
-      loadScenes()
-      loadShots()
-    }
-  } else if (currentStep.value === 2) {
-    // 第二步：角色和道具数据已在步骤切换时加载
-    loadCharacters()
-    loadProps()
-  } else if (currentStep.value === 3) {
-    // 第三步：场景、镜头、音频和视频数据已在步骤切换时加载
-    if (selectedChapter.value) {
-      loadScenes()
-      loadShots()
-      loadAudios()
-      loadVideos()
-    }
   }
 })
 
@@ -2130,9 +1431,13 @@ onMounted(async () => {
 
 // 组件卸载时清理轮询定时器
 onBeforeUnmount(() => {
-  if (pollTimer) {
-    clearInterval(pollTimer)
-    pollTimer = null
+  if (audioPollTimer) {
+    clearInterval(audioPollTimer)
+    audioPollTimer = null
+  }
+  if (videoPollTimer) {
+    clearInterval(videoPollTimer)
+    videoPollTimer = null
   }
 })
 </script>

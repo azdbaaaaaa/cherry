@@ -81,13 +81,12 @@ export const useUserStore = defineStore('user', {
         }
         return res.data.access_token
       } catch (error: any) {
-        // 如果是 401 错误，说明 refresh token 已过期或无效
+        // 如果是 401 错误，说明 refresh token 已过期或无效，清除认证状态
         if (error?.response?.status === 401) {
           this.clearAuth()
           throw new Error('Refresh token expired or invalid')
         }
-        // 其他错误也清除认证状态
-        this.clearAuth()
+        // 其他错误（如网络错误、500等）不清除认证状态，直接抛出错误
         throw error
       }
     },
@@ -98,9 +97,11 @@ export const useUserStore = defineStore('user', {
         if (!this.accessToken && this.refreshToken) {
           try {
             await this.refreshAccessToken()
-          } catch (refreshError) {
-            // 刷新失败，清除认证状态
-            this.clearAuth()
+          } catch (refreshError: any) {
+            // 只有在401错误时才清除认证状态
+            if (refreshError?.response?.status === 401) {
+              this.clearAuth()
+            }
             throw refreshError
           }
         }
@@ -110,12 +111,12 @@ export const useUserStore = defineStore('user', {
         this.isAuthenticated = true
         return res.data
       } catch (error: any) {
-        // 如果是 401 错误，说明 token 无效
+        // 如果是 401 错误，说明 token 无效，清除认证状态
         if (error?.response?.status === 401) {
           this.clearAuth()
           throw new Error('Authentication failed')
         }
-        this.clearAuth()
+        // 其他错误（如网络错误、500等）不清除认证状态，直接抛出错误
         throw error
       }
     },

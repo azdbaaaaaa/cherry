@@ -76,9 +76,21 @@ const routes: RouteRecordRaw[] = [
       },
       {
         path: 'novel/:id',
-        name: 'NovelDetail',
-        component: () => import('@/views/Novel/NovelDetail.vue'),
+        name: 'NovelInfo',
+        component: () => import('@/views/Novel/NovelInfo.vue'),
         meta: { title: '剧本详情', requiresAuth: true }
+      },
+      {
+        path: 'novel/:novelId/chapter/:chapterId/create-video',
+        name: 'NovelCreateVideo',
+        component: () => import('@/views/Novel/NovelDetail.vue'),
+        meta: { title: '创作视频', requiresAuth: true }
+      },
+      {
+        path: 'novel/shots/:shotId',
+        name: 'ShotDetail',
+        component: () => import('@/views/Novel/ShotDetail.vue'),
+        meta: { title: '镜头详情', requiresAuth: true }
       }
     ]
   }
@@ -108,14 +120,18 @@ router.beforeEach(async (to, from, next) => {
   if (!userStore.isAuthenticated && userStore.refreshToken) {
     try {
       await userStore.fetchUserInfo()
-    } catch (error) {
-      // 获取用户信息失败，清除认证状态
-      userStore.clearAuth()
-      // 如果需要认证，跳转到登录页
-      if (to.meta.requiresAuth) {
-        next({ name: 'Login', query: { redirect: to.fullPath } })
-        return
+    } catch (error: any) {
+      // 只有在401错误时才清除认证状态并跳转到登录页
+      if (error?.response?.status === 401) {
+        userStore.clearAuth()
+        // 如果需要认证，跳转到登录页
+        if (to.meta.requiresAuth) {
+          next({ name: 'Login', query: { redirect: to.fullPath } })
+          return
+        }
       }
+      // 其他错误（如网络错误、500等）不清除认证状态，也不跳转
+      // 让页面正常加载，由API拦截器处理错误提示
     }
   }
 

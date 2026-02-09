@@ -7,7 +7,7 @@
         <div class="header-actions">
           <el-button
             type="primary"
-            @click="generateNarrationVideos"
+            @click="generateShotVideos"
             :loading="generating.narration"
             :disabled="!chapterId"
           >
@@ -166,14 +166,14 @@ const fetchVideos = async () => {
   }
 }
 
-const generateNarrationVideos = async () => {
+const generateShotVideos = async () => {
   if (!chapterId.value) {
     ElMessage.warning('缺少 chapterId')
     return
   }
   try {
     generating.value.narration = true
-    await novelApi.generateNarrationVideos(chapterId.value)
+    await novelApi.generateShotVideos(chapterId.value)
     ElMessage.success('分镜视频生成任务已提交')
     setTimeout(() => {
       fetchVersions()

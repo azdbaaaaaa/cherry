@@ -115,6 +115,27 @@ export const novelApi = {
     })
   },
 
+  /**
+   * 切分章节
+   * @param novelId 小说ID
+   * @param targetChapters 目标章节数
+   * @returns Promise<{ code: number; message: string; data: { novel_id: string; target_chapters: number; message: string } }>
+   */
+  splitChapters(novelId: string, targetChapters: number) {
+    return request.post<{
+      code: number
+      message: string
+      data: {
+        novel_id: string
+        target_chapters: number
+        message: string
+      }
+    }>('/api/v1/chapters/split', {
+      novel_id: novelId,
+      target_chapters: targetChapters
+    })
+  },
+
   // ========== 场景和镜头相关 ==========
 
   /**
@@ -329,32 +350,34 @@ export const novelApi = {
   // ========== 视频相关 ==========
 
   /**
-   * 为章节生成 narration 视频
+   * 为章节生成 shot 视频
    * @param chapterId 章节ID
-   * @returns Promise<GenerateNarrationVideosResponse>
+   * @returns Promise<GenerateShotVideosResponse>
    */
-  generateNarrationVideos(chapterId: string) {
-    return request.post<GenerateNarrationVideosResponse>(
-      `/api/v1/novels/chapters/${chapterId}/videos/narration`
+  generateShotVideos(chapterId: string) {
+    return request.post<GenerateShotVideosResponse>(
+      `/api/v1/chapters/videos/shots`,
+      { chapter_id: chapterId }
     )
   },
 
   /**
    * 生成章节的最终完整视频
    * @param chapterId 章节ID
+   * @param version 可选：指定要合并的视频版本号
    * @returns Promise<GenerateFinalVideoResponse>
    */
-  generateFinalVideo(chapterId: string) {
+  generateFinalVideo(chapterId: string, version?: number) {
     return request.post<GenerateFinalVideoResponse>(
-      `/api/v1/novels/chapters/${chapterId}/videos/final`
+      `/api/v1/novels/chapters/videos/final`,
+      { chapter_id: chapterId, ...(version ? { version } : {}) }
     )
   },
 
   generateFinalVideoWithVersion(chapterId: string, version: number) {
     return request.post<GenerateFinalVideoResponse>(
-      `/api/v1/novels/chapters/${chapterId}/videos/final`,
-      undefined,
-      { params: { version } }
+      `/api/v1/novels/chapters/videos/final`,
+      { chapter_id: chapterId, version }
     )
   },
 
@@ -365,13 +388,14 @@ export const novelApi = {
    */
   getVideoVersions(chapterId: string) {
     return request.get<GetVideoVersionsResponse>(
-      `/api/v1/novels/chapters/${chapterId}/videos/versions`
+      `/api/v1/novels/chapters/videos/versions`,
+      { params: { chapter_id: chapterId } }
     )
   },
 
   listVideos(chapterId: string, version?: number) {
-    return request.get<ListVideosResponse>(`/api/v1/novels/chapters/${chapterId}/videos`, {
-      params: version ? { version } : {}
+    return request.get<ListVideosResponse>(`/api/v1/novels/chapters/videos`, {
+      params: { chapter_id: chapterId, ...(version ? { version } : {}) }
     })
   },
 
@@ -392,7 +416,7 @@ export const novelApi = {
    * 更新分镜头信息
    */
   updateShot(shotId: string, data: import('@/types/novel').UpdateShotRequest) {
-    return request.put(`/api/v1/shots/${shotId}`, data)
+    return request.put(`/api/v1/shots`, { shot_id: shotId, ...data })
   },
 
   /**
@@ -402,7 +426,103 @@ export const novelApi = {
     return request.post(`/api/v1/shots/${shotId}/regenerate`)
   },
 
+  /**
+   * 获取镜头详情
+   */
+  getShot(shotId: string) {
+    return request.get<{ shot: import('@/types/novel').Shot }>(`/api/v1/shots`, {
+      params: { shot_id: shotId }
+    })
+  },
+
+  /**
+   * 生成镜头图片（首图和尾图）
+   */
+  generateShotImages(shotId: string) {
+    return request.post<{ image_ids: string[]; count: number; shot_id: string }>(
+      `/api/v1/shots/images`,
+      { shot_id: shotId }
+    )
+  },
+
+  /**
+   * 获取镜头图片列表
+   */
+  getShotImages(shotId: string) {
+    return request.get<{ images: import('@/types/novel').Image[]; count: number }>(
+      `/api/v1/shots/images`,
+      { params: { shot_id: shotId } }
+    )
+  },
+
+  /**
+   * 生成镜头音频
+   */
+  generateShotAudio(shotId: string) {
+    return request.post<{ audio_id: string; shot_id: string }>(`/api/v1/shots/audio`, {
+      shot_id: shotId
+    })
+  },
+
+  /**
+   * 获取镜头音频列表
+   */
+  getShotAudios(shotId: string) {
+    return request.get<{ audios: import('@/types/novel').Audio[]; count: number }>(
+      `/api/v1/shots/audios`,
+      { params: { shot_id: shotId } }
+    )
+  },
+
+  /**
+   * 生成镜头字幕
+   */
+  generateShotSubtitle(shotId: string) {
+    return request.post<{ subtitle_id: string; shot_id: string }>(`/api/v1/shots/subtitle`, {
+      shot_id: shotId
+    })
+  },
+
+  /**
+   * 获取镜头字幕列表
+   */
+  getShotSubtitles(shotId: string) {
+    return request.get<{ subtitles: import('@/types/novel').Subtitle[]; count: number }>(
+      `/api/v1/shots/subtitles`,
+      { params: { shot_id: shotId } }
+    )
+  },
+
+  /**
+   * 生成镜头视频
+   */
+  generateShotVideo(shotId: string) {
+    return request.post<{ video_id: string; shot_id: string }>(`/api/v1/shots/video`, {
+      shot_id: shotId
+    })
+  },
+
+  /**
+   * 获取镜头视频列表
+   */
+  getShotVideos(shotId: string) {
+    return request.get<{ videos: import('@/types/novel').Video[]; count: number }>(
+      `/api/v1/shots/videos`,
+      { params: { shot_id: shotId } }
+    )
+  },
+
   // ========== 图片生成（角色、场景、道具）==========
+
+  /**
+   * 从小说生成角色和道具（基于整个小说内容）
+   */
+  generateCharactersFromNovel(novelId: string) {
+    return request.post<{ novel_id: string; message: string }>(
+      '/api/v1/characters/generate-from-novel',
+      { novel_id: novelId }
+    )
+  },
 
   /**
    * 生成角色图片（异步）
@@ -500,6 +620,26 @@ export const novelApi = {
   },
 
   /**
+   * 获取角色的所有图片
+   */
+  getCharacterImages(characterId: string) {
+    return request.get<{ character_id: string; images: import('@/types/novel').Image[]; count: number }>(
+      '/api/v1/characters/images',
+      { params: { character_id: characterId } }
+    )
+  },
+
+  /**
+   * 获取道具的所有图片
+   */
+  getPropImages(propId: string) {
+    return request.get<{ prop_id: string; images: import('@/types/novel').Image[]; count: number }>(
+      '/api/v1/props/images',
+      { params: { prop_id: propId } }
+    )
+  },
+
+  /**
    * 为章节生成所有 shot 的音频
    */
   generateAudiosForChapter(chapterId: string) {
@@ -513,7 +653,8 @@ export const novelApi = {
    */
   generateVideosForChapter(chapterId: string) {
     return request.post<{ chapter_id: string; message: string }>(
-      `/api/v1/chapters/${chapterId}/videos`
+      `/api/v1/chapters/videos`,
+      { chapter_id: chapterId }
     )
   },
 
@@ -522,8 +663,8 @@ export const novelApi = {
    */
   getAudiosByChapter(chapterId: string, version?: number) {
     return request.get<{ audios: import('@/types/novel').Audio[]; version: number }>(
-      `/api/v1/chapters/${chapterId}/audios`,
-      { params: version ? { version } : {} }
+      `/api/v1/chapters/audios`,
+      { params: { chapter_id: chapterId, ...(version ? { version } : {}) } }
     )
   },
 
@@ -532,8 +673,8 @@ export const novelApi = {
    */
   getVideosByChapter(chapterId: string, version?: number) {
     return request.get<{ videos: import('@/types/novel').Video[]; version: number }>(
-      `/api/v1/chapters/${chapterId}/videos`,
-      { params: version ? { version } : {} }
+      `/api/v1/chapters/videos`,
+      { params: { chapter_id: chapterId, ...(version ? { version } : {}) } }
     )
   }
 }

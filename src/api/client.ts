@@ -107,15 +107,20 @@ request.interceptors.response.use(
           
           // 重试原请求
           return request(originalRequest)
-        } catch (refreshError) {
-          // 刷新失败，跳转到登录页
-          userStore.clearAuth()
-          ElMessage.error('登录已过期，请重新登录')
-          nextTick(() => {
-            if (router.currentRoute.value.name !== 'Login') {
-              router.push({ name: 'Login', query: { redirect: router.currentRoute.value.fullPath } })
-            }
-          })
+        } catch (refreshError: any) {
+          // 只有在401错误时才跳转到登录页
+          if (refreshError?.response?.status === 401) {
+            userStore.clearAuth()
+            ElMessage.error('登录已过期，请重新登录')
+            nextTick(() => {
+              if (router.currentRoute.value.name !== 'Login') {
+                router.push({ name: 'Login', query: { redirect: router.currentRoute.value.fullPath } })
+              }
+            })
+          } else {
+            // 其他错误（如网络错误）只显示错误消息，不跳转
+            ElMessage.error('刷新Token失败，请稍后重试')
+          }
           return Promise.reject(refreshError)
         }
       } else {
