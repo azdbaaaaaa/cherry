@@ -48,7 +48,7 @@
             <div v-else-if="novel">
           <!-- 场景和镜头内容 -->
           <div class="step-content">
-            <!-- 顶部工具栏：剧本信息 + 章节信息 -->
+            <!-- 顶部工具栏：剧本信息 + 章节信息 + 章节视频操作 -->
             <div class="top-toolbar">
                   <!-- 左侧：剧本和章节基本信息（紧凑显示） -->
                   <div class="toolbar-left">
@@ -63,7 +63,7 @@
               </div>
                 </div>
 
-                  <!-- 右侧：切分章节 -->
+                  <!-- 右侧：章节操作 -->
                   <div class="toolbar-right">
                     <div v-if="chapters.length === 0" class="toolbar-generate">
                       <button
@@ -84,6 +84,20 @@
                           <span class="progress-message">{{ splitProgress.message || '正在切分章节...' }}</span>
                         </div>
                       </div>
+                    </div>
+
+                    <!-- 章节完整视频生成（当前创作页面顶部） -->
+                    <div v-if="selectedChapter" class="toolbar-final-video">
+                      <button
+                        @click="handleGenerateFinalVideo"
+                        :disabled="generatingFinalVideo"
+                        class="generate-button generate-button--toolbar"
+                      >
+                        <span v-if="generatingFinalVideo" class="button-spinner"></span>
+                        <span>
+                          {{ generatingFinalVideo ? '生成章节完整视频中...' : '生成章节完整视频' }}
+                        </span>
+                      </button>
                     </div>
                   </div>
                 </div>

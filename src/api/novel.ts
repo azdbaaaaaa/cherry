@@ -369,14 +369,14 @@ export const novelApi = {
    */
   generateFinalVideo(chapterId: string, version?: number) {
     return request.post<GenerateFinalVideoResponse>(
-      `/api/v1/novels/chapters/videos/final`,
+      `/api/v1/chapters/videos/final`,
       { chapter_id: chapterId, ...(version ? { version } : {}) }
     )
   },
 
   generateFinalVideoWithVersion(chapterId: string, version: number) {
     return request.post<GenerateFinalVideoResponse>(
-      `/api/v1/novels/chapters/videos/final`,
+      `/api/v1/chapters/videos/final`,
       { chapter_id: chapterId, version }
     )
   },

@@ -236,12 +236,14 @@ export interface ListAudiosResponse {
 export interface Subtitle {
   id: string
   chapter_id: string
-  narration_id: string
+  narration_id?: string
+  shot_id?: string
   user_id: string
   sequence: number
   subtitle_resource_id: string
+  subtitle_url?: string // 字幕的直接访问URL
   format: string
-  prompt: string
+  prompt?: string
   version: number
   status: 'pending' | 'completed' | 'failed'
   created_at: string
@@ -274,8 +276,8 @@ export interface Image {
   scene_number: string
   shot_number: string
   character_name?: string
-  image_resource_id: string
-  image_url?: string // 图片的直接访问URL
+  image_resource_id?: string // 已废弃，保留用于向后兼容
+  image_url?: string // 图片的直接访问URL（优先使用此字段）
   character_image_subtype?: string // 角色图片细分类：front（正视图）、three_view（三视图）、detail（细节图）
   prompt: string
   version: number
